@@ -1,0 +1,13 @@
+{
+  "name": "academy-desk-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "seed": "node scripts/seed.js",
+    "seed:empty": "node scripts/seed.js --empty",
+    "test": "node --test test/"
+  }
+}

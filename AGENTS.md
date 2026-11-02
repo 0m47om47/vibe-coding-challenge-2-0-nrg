@@ -271,7 +271,7 @@ frontend/
 
 ## 7. Backend task list (Suraj)
 
-- [ ] **B0. Scaffold** `backend/`: `npm init`, `"type": "module"`, install `express mongoose bcryptjs jsonwebtoken cookie-parser cors dotenv`, dev `nodemon`. `app.js` + `server.js` + `/api/health`. `.env.example`.
+- [ ] **B0. Setup** `backend/` (skeleton files and `package.json` scripts already exist): install `express mongoose bcryptjs jsonwebtoken cookie-parser cors dotenv`, dev `nodemon`. `app.js` + `server.js` + `/api/health`. `.env.example`.
 - [ ] B1. `db.js`: cached Mongoose connection.
 - [ ] B2. Models: `User`, `Player`, `Session`, `Match`. Unique index on `User.username` and on `Session (sport, date)`.
 - [ ] B3. `middleware/auth.js` + login / logout / me routes.
@@ -287,7 +287,7 @@ frontend/
 
 Independent from day one: work with `NEXT_PUBLIC_USE_MOCKS=true` until the backend is up. Every API error message must be shown to the user (e.g. "Chandan was absent on 2026-11-01").
 
-- [ ] **F0. Scaffold** `frontend/`: `create-next-app` (TS, Tailwind, App Router, `src/`), `/api` rewrite, `src/types/index.ts` from §4.
+- [ ] **F0. Setup** `frontend/` (skeleton files already exist, so don't run `create-next-app`, it refuses a non-empty folder): `npm init -y`, `npm i next react react-dom`, `npm i -D typescript @types/react @types/node tailwindcss @tailwindcss/postcss postcss`, add `dev/build/start` scripts, `tsconfig.json`, `postcss.config.mjs`. Then fill `next.config.ts` (`/api` rewrite) and `src/types/index.ts` from §4.
 - [ ] F1. `lib/api.ts` + `mocks/` with data matching §9.
 - [ ] F2. `/login`: form, after login go to the user's home by role.
 - [ ] F3. Shared layout: top bar with username, role, logout. Mobile-friendly (coach uses a phone on the field).

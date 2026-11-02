@@ -1,0 +1,1 @@
+// Player: own row only
