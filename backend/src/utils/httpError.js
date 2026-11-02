@@ -1,1 +1,7 @@
-// HttpError class used by the central error handler
+export class HttpError extends Error {
+  constructor(status, message, details) {
+    super(message);
+    this.status = status;
+    this.details = details;
+  }
+}
