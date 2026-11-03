@@ -287,21 +287,21 @@ frontend/
 
 Independent from day one: work with `NEXT_PUBLIC_USE_MOCKS=true` until the backend is up. Every API error message must be shown to the user (e.g. "Chandan was absent on 2026-11-01").
 
-- [ ] **F0. Setup** `frontend/` (skeleton files already exist, so don't run `create-next-app`, it refuses a non-empty folder): `npm init -y`, `npm i next react react-dom`, `npm i -D typescript @types/react @types/node tailwindcss @tailwindcss/postcss postcss`, add `dev/build/start` scripts, `tsconfig.json`, `postcss.config.mjs`. Then fill `next.config.ts` (`/api` rewrite) and `src/types/index.ts` from §4.
-- [ ] F1. `lib/api.ts` + `mocks/` with data matching §9.
-- [ ] F2. `/login`: form, after login go to the user's home by role.
-- [ ] F3. Shared layout: top bar with username, role, logout. Mobile-friendly (coach uses a phone on the field).
-- [ ] F4. **Route guarding**: a `RoleGuard` (or server layout) calls `/api/auth/me`. Not logged in → `/login`. Wrong role → own home (`coach → /coach`, `scout → /scout`, `player → /me`). This is only for UX; the backend does the real blocking.
-- [ ] F5. **Coach**
+- [x] **F0. Setup** `frontend/` (skeleton files already exist, so don't run `create-next-app`, it refuses a non-empty folder): `npm init -y`, `npm i next react react-dom`, `npm i -D typescript @types/react @types/node tailwindcss @tailwindcss/postcss postcss`, add `dev/build/start` scripts, `tsconfig.json`, `postcss.config.mjs`. Then fill `next.config.ts` (`/api` rewrite) and `src/types/index.ts` from §4.
+- [x] F1. `lib/api.ts` + `mocks/` with data matching §9.
+- [x] F2. `/login`: form, after login go to the user's home by role.
+- [x] F3. Shared layout: top bar with username, role, logout. Mobile-friendly (coach uses a phone on the field).
+- [x] F4. **Route guarding**: a `RoleGuard` (or server layout) calls `/api/auth/me`. Not logged in → `/login`. Wrong role → own home (`coach → /coach`, `scout → /scout`, `player → /me`). This is only for UX; the backend does the real blocking.
+- [x] F5. **Coach**
   - `/coach`: Ready board: table of all players with attendance %, matches, Ready badge. Filter by sport.
   - `/coach/players`: list + "Add player" form (name, age, sport, username, password).
   - `/coach/sessions`: list of sessions (open/closed badge) + "Open session" form (date, sport).
   - `/coach/sessions/[id]`: roster with Present / Absent toggle per player, "Close session" button. When closed: read-only with a locked badge.
   - `/coach/matches`: list of matches.
   - `/coach/matches/new`: date + sport + opponent, then load eligible players and enter a score for each who played. Show refused-player errors from the 422.
-- [ ] F6. **Scout** `/scout`: list of Ready players only (name, age, sport, attendance %, matches). Read-only.
-- [ ] F7. **Player** `/me`: their own row only: attendance %, sessions present/held, matches played, Ready or not (and what's missing, e.g. "needs 1 more match").
-- [ ] F8. Empty states and loading states on every list.
+- [x] F6. **Scout** `/scout`: list of Ready players only (name, age, sport, attendance %, matches). Read-only.
+- [x] F7. **Player** `/me`: their own row only: attendance %, sessions present/held, matches played, Ready or not (and what's missing, e.g. "needs 1 more match").
+- [x] F8. Empty states and loading states on every list.
 - [ ] F9. Deploy `frontend/` to Vercel with `BACKEND_URL` set. This is the live URL we submit.
 
 ---
@@ -337,6 +337,13 @@ How each check is shown:
 - If the frontend needs something the API doesn't give, write it under **Open questions** below rather than working around it.
 - Competition rules: write our own prompts, don't paste or screenshot the challenge page into an AI, don't use other teams' code. No push after End.
 
-## 11. Open questions
+## 11. Frontend notes
+
+- Run it: `cd frontend && npm run dev`. `frontend/.env.local` has `NEXT_PUBLIC_USE_MOCKS=true` (demo data in the browser, no backend). Set it to `false` and set `BACKEND_URL` to use the real API. `NEXT_PUBLIC_*` values are fixed at build time, so restart or rebuild after changing it.
+- Mock data is stored in `localStorage`. To reset the demo, run `localStorage.clear()` in the browser console.
+- Visual rules come from the `landing-page-design` skill (Part B): Geist only, named text styles in `globals.css` (`heading-5`, `body-6`, `button-md`, ...), spacing from the 0/2/4/8/12/16/24/32/40/48/64/80/96 table, dark surfaces from the approved set, Phosphor icons, no hyphens in copy.
+- On the real backend the match form lists everyone of the sport, and disables players who were not present that day (the server still refuses them with 422 if one gets through).
+
+## 12. Open questions
 
 - (none yet)
