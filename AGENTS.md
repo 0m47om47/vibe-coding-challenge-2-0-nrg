@@ -209,7 +209,7 @@ All under `/api`. JSON in, JSON out. Errors always use the `ApiError` shape. Aut
 | POST | `/api/sessions` | coach | `{ date, sport }` | 201 `{ session }`. 409 if one already exists for that sport+date |
 | GET | `/api/sessions/:id` | coach | – | 200 `{ session }` |
 | PATCH | `/api/sessions/:id/attendance` | coach | `{ marks: [{ playerId, mark }] }` | 200 `{ session }`. **409 if closed**. 400 if player not on roster |
-| POST | `/api/sessions/:id/close` | coach | – | 200 `{ session }`. 409 if already closed or anyone unmarked |
+| POST | `/api/sessions/:id/close` | coach | – | 200 `{ session }`. 409 if already closed or anyone unmarked (then `details.unmarked: [{ playerId, playerName }]`) |
 
 ### Matches
 | Method | Path | Who | Body | Success |
@@ -231,7 +231,7 @@ Each person owns one folder. Touching the other folder needs a heads-up. `AGENTS
 ### `backend/` (Suraj): Node.js + Express, plain JS
 ```
 backend/
-  package.json            "type": "module"; scripts: dev, start, seed, seed:empty, test
+  package.json            "type": "module"; scripts: dev, start, seed, seed:empty, test (`node --test`)
   vercel.json             rewrites all paths to /api so Express handles them
   .env.example
   api/index.js            Vercel entry: export default app
@@ -243,6 +243,7 @@ backend/
     models/               User.js, Player.js, Session.js, Match.js
     middleware/auth.js    requireAuth, requireRole(...roles)
     services/stats.js     attendance + Ready calculation (one place only)
+    services/matchRules.js  who may go on a match sheet (pure function, unit-tested)
     routes/               auth.js, players.js, sessions.js, matches.js
     utils/                httpError.js, validate.js, toJSON helpers (id instead of _id)
   scripts/seed.js
@@ -271,16 +272,16 @@ frontend/
 
 ## 7. Backend task list (Suraj)
 
-- [ ] **B0. Setup** `backend/` (skeleton files and `package.json` scripts already exist): install `express mongoose bcryptjs jsonwebtoken cookie-parser cors dotenv`, dev `nodemon`. `app.js` + `server.js` + `/api/health`. `.env.example`.
-- [ ] B1. `db.js`: cached Mongoose connection.
-- [ ] B2. Models: `User`, `Player`, `Session`, `Match`. Unique index on `User.username` and on `Session (sport, date)`.
-- [ ] B3. `middleware/auth.js` + login / logout / me routes.
-- [ ] B4. `services/stats.js`: one function `getPlayerStats(filter)` used by every players route. Tests for the 75% boundary.
-- [ ] B5. Players routes, with the role filters from §3.
-- [ ] B6. Sessions routes: open, mark, close, lock enforcement.
-- [ ] B7. Matches routes: eligibility check, 422 with refused list, all-or-nothing save.
-- [ ] B8. Central error handler: always returns `ApiError`, never a stack trace.
-- [ ] B9. Seed script (§9).
+- [x] **B0. Setup** `backend/` (skeleton files and `package.json` scripts already exist): install `express mongoose bcryptjs jsonwebtoken cookie-parser cors dotenv`, dev `nodemon`. `app.js` + `server.js` + `/api/health`. `.env.example`.
+- [x] B1. `db.js`: cached Mongoose connection.
+- [x] B2. Models: `User`, `Player`, `Session`, `Match`. Unique index on `User.username` and on `Session (sport, date)`.
+- [x] B3. `middleware/auth.js` + login / logout / me routes.
+- [x] B4. `services/stats.js`: one function `getPlayerStats(filter)` used by every players route. Tests for the 75% boundary.
+- [x] B5. Players routes, with the role filters from §3.
+- [x] B6. Sessions routes: open, mark, close, lock enforcement.
+- [x] B7. Matches routes: eligibility check, 422 with refused list, all-or-nothing save.
+- [x] B8. Central error handler: always returns `ApiError`, never a stack trace.
+- [x] B9. Seed script (§9).
 - [ ] B10. Deploy `backend/` to Vercel, set env vars, run seed against Atlas, give `BACKEND_URL` to the teammate.
 
 ## 8. Frontend task list (teammate)
