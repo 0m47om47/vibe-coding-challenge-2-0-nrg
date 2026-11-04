@@ -4,7 +4,7 @@ import { SPORTS } from "../constants.js";
 const scoreSchema = new mongoose.Schema(
   {
     player: { type: mongoose.Schema.Types.ObjectId, ref: "Player", required: true },
-    score: { type: Number, required: true, min: 0 },
+    stats: { type: mongoose.Schema.Types.Mixed, default: {} }, // { statKey: whole number }, keys from SPORT_STATS
   },
   { _id: false }
 );

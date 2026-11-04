@@ -1,7 +1,10 @@
 import type {
   Match,
   Mark,
+  PhotoUploadTicket,
   Player,
+  PlayerHistory,
+  PlayerProfileUpdate,
   PlayerStats,
   PracticeSession,
   SessionUser,
@@ -9,7 +12,7 @@ import type {
 } from "@/types";
 
 // NEXT_PUBLIC_USE_MOCKS=true runs the whole app on in browser mock data, no backend needed.
-const USE_MOCKS = process.env.NEXT_PUBLIC_USE_MOCKS === "true";
+export const USE_MOCKS = process.env.NEXT_PUBLIC_USE_MOCKS === "true";
 
 export class ApiRequestError extends Error {
   status: number;
@@ -76,8 +79,13 @@ export const api = {
   players: {
     list: (sport?: Sport) => request<{ players: PlayerStats[] }>("GET", `/players${qs({ sport })}`),
     get: (id: string) => request<{ player: PlayerStats }>("GET", `/players/${id}`),
+    history: (id: string) => request<{ history: PlayerHistory }>("GET", `/players/${id}/history`),
     create: (body: { name: string; age: number; sport: Sport; username: string; password: string }) =>
       request<{ player: Player }>("POST", "/players", body),
+    update: (id: string, body: PlayerProfileUpdate) =>
+      request<{ player: PlayerStats }>("PATCH", `/players/${id}`, body),
+    photoSignature: (id: string) =>
+      request<{ ticket: PhotoUploadTicket }>("POST", `/players/${id}/photo-signature`),
   },
   sessions: {
     list: () => request<{ sessions: PracticeSession[] }>("GET", "/sessions"),
@@ -96,7 +104,7 @@ export const api = {
       date: string;
       sport: Sport;
       opponent: string;
-      scores: { playerId: string; score: number }[];
+      scores: { playerId: string; stats: Record<string, number> }[];
     }) => request<{ match: Match }>("POST", "/matches", body),
   },
 };

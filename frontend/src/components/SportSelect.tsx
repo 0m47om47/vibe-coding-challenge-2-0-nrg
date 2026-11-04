@@ -20,9 +20,13 @@ export function SportSelect<T extends Sport | "">({
       disabled={disabled}
       onChange={(e) => onChange(e.target.value as T)}
     >
-      {allLabel && <option value="">{allLabel}</option>}
+      {allLabel && (
+        <option value="" className="bg-surface text-ink">
+          {allLabel}
+        </option>
+      )}
       {SPORTS.map((s) => (
-        <option key={s} value={s}>
+        <option key={s} value={s} className="bg-surface text-ink">
           {s}
         </option>
       ))}

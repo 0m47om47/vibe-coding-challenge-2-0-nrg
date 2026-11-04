@@ -24,7 +24,7 @@ export function RequireRole({ role, children }: { role: Role; children: React.Re
     return (
       <main id="main" className="mx-auto w-full max-w-4xl px-4 pt-24" role="status" aria-label="Loading">
         <Skeleton className="mb-6 h-8 w-48" />
-        <Skeleton className="h-48 w-full rounded-2xl" />
+        <Skeleton className="h-48 w-full rounded-xl" />
       </main>
     );
   }

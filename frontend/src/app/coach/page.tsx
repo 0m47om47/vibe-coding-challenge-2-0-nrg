@@ -1,17 +1,15 @@
 "use client";
 
-import { useState } from "react";
 import { UserPlus } from "@phosphor-icons/react";
-import { PlayerTable } from "@/components/PlayerTable";
-import { SportSelect } from "@/components/SportSelect";
-import { EmptyState, ErrorNote, Field, LinkButton, ListSkeleton, PageHeader, Skeleton } from "@/components/ui";
+import { PlayersView } from "@/components/PlayersView";
+import { useSportFilter } from "@/components/SportFilter";
+import { EmptyState, ErrorNote, LinkButton, ListSkeleton, PageHeader, Skeleton } from "@/components/ui";
 import { api } from "@/lib/api";
 import { pctLabel } from "@/lib/format";
 import { useLoad } from "@/lib/useLoad";
-import type { Sport } from "@/types";
 
 export default function ReadyBoardPage() {
-  const [sport, setSport] = useState<Sport | "">("");
+  const { sport } = useSportFilter();
   const { data, error, loading, reload } = useLoad(() => api.players.list(sport || undefined), [sport]);
   const players = data?.players ?? [];
 
@@ -21,29 +19,24 @@ export default function ReadyBoardPage() {
     ? Math.round((withSessions.reduce((n, p) => n + p.attendancePct, 0) / withSessions.length) * 10) / 10
     : 0;
 
+  const totals: [string, string | null][] = [
+    ["Players", loading ? null : String(players.length)],
+    ["Ready", loading ? null : String(ready)],
+    ["Average attendance", loading ? null : pctLabel(avg)],
+  ];
+
   return (
     <>
       <PageHeader
         title="Ready board"
-        subtitle="Ready means at least 75% attendance and at least 2 matches. The list updates as you close sessions and record matches."
-        action={
-          <div className="w-full sm:w-48">
-            <Field label="Sport">
-              <SportSelect value={sport} onChange={setSport} allLabel="All sports" />
-            </Field>
-          </div>
-        }
+        subtitle="Ready means at least 75% attendance and at least 2 matches. The board updates as you close sessions and record matches."
       />
 
       <dl className="mb-6 grid grid-cols-3 gap-3">
-        {[
-          ["Players", loading ? null : String(players.length)],
-          ["Ready", loading ? null : String(ready)],
-          ["Average attendance", loading ? null : pctLabel(avg)],
-        ].map(([label, value]) => (
-          <div key={label} className="rounded-2xl border border-line bg-surface p-4">
+        {totals.map(([label, value]) => (
+          <div key={label} className="rounded-xl border border-line bg-surface p-4">
             <dt className="caption-4 text-muted">{label}</dt>
-            <dd className="heading-5 md:heading-4">{value ?? <Skeleton className="mt-1 h-6 w-12" />}</dd>
+            <dd className="heading-5 md:heading-4 text-ink">{value ?? <Skeleton className="mt-1 h-7 w-12" />}</dd>
           </div>
         ))}
       </dl>
@@ -60,7 +53,7 @@ export default function ReadyBoardPage() {
           action={<LinkButton href="/coach/players">Add a player</LinkButton>}
         />
       ) : (
-        <PlayerTable players={players} />
+        <PlayersView players={players} />
       )}
     </>
   );

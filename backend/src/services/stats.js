@@ -1,4 +1,5 @@
 import Player from "../models/Player.js";
+import { profileJSON } from "../utils/toJSON.js";
 import Session from "../models/Session.js";
 import Match from "../models/Match.js";
 import {
@@ -54,6 +55,7 @@ export function computeStats(players, sessions, matches) {
       name: p.name,
       age: p.age,
       sport: p.sport,
+      ...profileJSON(p),
       sessionsHeld: h,
       sessionsPresent: pr,
       attendancePct: attendancePct(h, pr),

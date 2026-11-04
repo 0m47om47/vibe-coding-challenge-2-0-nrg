@@ -1,25 +1,41 @@
 @import "tailwindcss";
 
-/* Dark surfaces use only the approved set: #000000 #181818 #1F1F1F #272727 #313131 */
+/*
+  Sports-club theme from the team palette: 4758D6 blue, 201C1C near-black, EA3A3A red, EEEDED light grey,
+  E1811F orange. Light pages with a near-black sidebar and score banner. Blue is the primary action and the
+  present mark, red is absent, orange is Ready. Derived shades (white cards, border grey, darker text tones
+  for contrast) are marked below. No gradients, glows or decorative backgrounds.
+*/
 @theme {
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
 
-  --color-canvas: #000000;
-  --color-surface: #181818;
-  --color-raised: #1f1f1f;
-  --color-hover: #272727;
-  --color-line: #313131;
-  --color-muted: #9b9b9b;
+  --color-canvas: #eeeded;        /* palette: light grey, page background */
+  --color-surface: #ffffff;       /* derived: cards */
+  --color-raised: #f6f5f5;        /* derived: inputs, tooltips */
+  --color-hover: #e2e1e1;         /* derived */
+  --color-line: #cfcdcd;          /* derived: borders */
+  --color-muted: #5f5a5a;         /* derived: captions */
 
-  --color-ok: #6ee7b7;
-  --color-warn: #fcd34d;
-  --color-bad: #fda4af;
+  --color-dark: #201c1c;          /* palette: near-black, sidebar and score banner */
+  --color-on-dark: #eeeded;       /* palette: text on near-black */
+  --color-ink: #201c1c;           /* palette: main text */
+  --color-ink-2: #3d3838;         /* derived: secondary text */
+  --color-primary: #4758d6;       /* palette: blue, buttons and selected states */
+  --color-primary-hover: #3647bd; /* derived */
+  --color-on-primary: #ffffff;
+  --color-accent: #4758d6;        /* palette: blue, present marks and bars */
+  --color-accent-ink: #3a49b8;    /* derived: blue for small text */
+  --color-highlight: #e1811f;     /* palette: orange, Ready fills */
+  --color-highlight-ink: #9a5300; /* derived: orange dark enough for text */
+  --color-bad: #b81f1f;           /* derived: red for text and strong fills */
+  --color-bad-line: #ea3a3a;      /* palette: red, absent marks and borders */
+  --color-go: #1e8a4c;            /* derived: green, Ready tags. Not in the palette, requested for Ready */
 
   --ease-brand: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 html {
@@ -28,29 +44,30 @@ html {
 
 body {
   background: var(--color-canvas);
-  color: #ffffff;
+  color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
 }
 
 :focus-visible {
-  outline: 2px solid #ffffff;
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 
 /* ---------- Named text styles (sizes come from Tailwind's type scale) ---------- */
-@utility heading-1 { @apply text-6xl font-semibold; text-wrap: balance; }
-@utility heading-2 { @apply text-5xl font-semibold; text-wrap: balance; }
-@utility heading-3 { @apply text-4xl font-semibold; text-wrap: balance; }
-@utility heading-4 { @apply text-3xl font-semibold; text-wrap: balance; }
-@utility heading-5 { @apply text-2xl font-semibold; text-wrap: balance; }
-@utility heading-6 { @apply text-xl font-semibold; text-wrap: balance; }
+@utility heading-1 { @apply text-6xl font-extrabold tracking-tight; text-wrap: balance; }
+@utility heading-2 { @apply text-5xl font-extrabold tracking-tight; text-wrap: balance; }
+@utility heading-3 { @apply text-4xl font-extrabold tracking-tight; text-wrap: balance; }
+@utility heading-4 { @apply text-3xl font-extrabold tracking-tight; text-wrap: balance; }
+@utility heading-5 { @apply text-2xl font-extrabold tracking-tight; text-wrap: balance; }
+@utility heading-6 { @apply text-xl font-extrabold tracking-tight; text-wrap: balance; }
 
-@utility title-1 { @apply text-xl font-medium; }
-@utility title-2 { @apply text-lg font-medium; }
-@utility title-3 { @apply text-base font-medium; }
-@utility title-4 { @apply text-sm font-medium; }
-@utility title-5 { @apply text-xs font-medium; }
+@utility title-1 { @apply text-xl font-semibold; }
+@utility title-2 { @apply text-lg font-semibold; }
+@utility title-3 { @apply text-base font-semibold; }
+@utility title-4 { @apply text-sm font-semibold; }
+@utility title-5 { @apply text-xs font-semibold; }
 
 @utility body-1 { @apply text-base font-semibold; text-wrap: pretty; }
 @utility body-2 { @apply text-base font-medium; text-wrap: pretty; }
@@ -70,16 +87,16 @@ body {
 @utility caption-4 { @apply text-xs font-medium; }
 @utility caption-5 { @apply text-xs font-normal; }
 
-/* ---------- Motion: weighted, decelerating, never a browser default curve ---------- */
+/* ---------- Motion: weighted, decelerating. Only the properties that change. ---------- */
 @utility motion-base {
   transition-property: color, background-color, border-color, opacity, transform;
-  transition-duration: 300ms;
+  transition-duration: 200ms;
   transition-timing-function: var(--ease-brand);
 }
 
 @utility motion-slow {
   transition-property: transform, opacity;
-  transition-duration: 500ms;
+  transition-duration: 400ms;
   transition-timing-function: var(--ease-brand);
 }
 

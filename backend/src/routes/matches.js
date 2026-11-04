@@ -2,6 +2,7 @@ import { Router } from "express";
 import Player from "../models/Player.js";
 import Session from "../models/Session.js";
 import Match from "../models/Match.js";
+import { SPORT_STATS } from "../constants.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { HttpError } from "../utils/httpError.js";
 import { matchJSON, playerJSON } from "../utils/toJSON.js";
@@ -14,6 +15,19 @@ import {
   assertInt,
   assertObjectId,
 } from "../utils/validate.js";
+
+// Every stat the sport defines, as a whole number from 0. Left out means 0. Any other key is refused.
+function statsFor(sport, raw) {
+  const fields = SPORT_STATS[sport];
+  const given = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+  const unknown = Object.keys(given).filter((k) => !fields.some((f) => f.key === k));
+  if (unknown.length > 0) {
+    throw new HttpError(400, `${sport} does not record: ${unknown.join(", ")}. Use ${fields.map((f) => f.key).join(", ")}.`);
+  }
+  return Object.fromEntries(
+    fields.map((f) => [f.key, given[f.key] == null ? 0 : assertInt(given[f.key], f.label, { min: 0, max: 1000 })])
+  );
+}
 
 const router = Router();
 router.use(requireAuth, requireRole("coach"));
@@ -49,7 +63,7 @@ router.post("/", async (req, res) => {
   }
   const entries = body.scores.map((s) => ({
     playerId: assertObjectId(s?.playerId, "playerId"),
-    score: assertInt(s?.score, "score", { min: 0, max: 1000 }),
+    stats: statsFor(sport, s?.stats),
   }));
   const ids = entries.map((e) => e.playerId);
   if (new Set(ids).size !== ids.length) {
@@ -79,7 +93,7 @@ router.post("/", async (req, res) => {
     date,
     sport,
     opponent,
-    scores: entries.map((e) => ({ player: e.playerId, score: e.score })),
+    scores: entries.map((e) => ({ player: e.playerId, stats: e.stats })),
   });
   const saved = await Match.findById(match._id).populate("scores.player", "name");
   res.status(201).json({ match: matchJSON(saved) });

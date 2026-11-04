@@ -1,6 +1,7 @@
 // In browser stand in for the backend API (AGENTS.md §5). Same routes, same rules, same error shapes.
 // State lives in localStorage so a refresh keeps the demo data. Clear it with: localStorage.clear()
 import { SPORTS } from "@/types";
+import { SPORT_STATS } from "@/lib/sportStats";
 import type { Mark, Player, PlayerStats, PracticeSession, Match, SessionUser, Sport } from "@/types";
 import { seedDb, type MockDb, type MockSession, type MockMatch, type MockUser } from "./data";
 
@@ -9,7 +10,7 @@ export interface MockResponse {
   body: unknown;
 }
 
-const DB_KEY = "academy-mock-db";
+const DB_KEY = "academy-mock-db-v2";
 const USER_KEY = "academy-mock-user";
 
 const ok = (body: unknown, status = 200): MockResponse => ({ status, body });
@@ -92,7 +93,7 @@ const sessionOut = (db: MockDb, s: MockSession): PracticeSession => ({
 
 const matchOut = (db: MockDb, m: MockMatch): Match => ({
   ...m,
-  scores: m.scores.map((s) => ({ playerId: s.playerId, playerName: nameOf(db, s.playerId), score: s.score })),
+  scores: m.scores.map((s) => ({ playerId: s.playerId, playerName: nameOf(db, s.playerId), stats: s.stats })),
 });
 
 const isDate = (v: unknown): v is string => {
@@ -148,6 +149,86 @@ export async function mockRequest(method: string, path: string, body?: unknown):
       const stats = statsFor(db, p);
       if (me.role === "scout" && !stats.ready) return fail(404, "Player not found.");
       return ok({ player: stats });
+    }
+    if (method === "GET" && seg.length === 3 && seg[2] === "history") {
+      const p = db.players.find((x) => x.id === seg[1]);
+      if (!p || (me.role === "player" && p.id !== me.playerId)) return fail(404, "Player not found.");
+      if (me.role === "scout" && !statsFor(db, p).ready) return fail(404, "Player not found.");
+      const sessions = db.sessions
+        .filter((s) => s.status === "closed")
+        .flatMap((s) => {
+          const mark = s.attendance.find((a) => a.playerId === p.id)?.mark;
+          return mark ? [{ id: s.id, date: s.date, sport: s.sport, mark }] : [];
+        })
+        .sort((a, c) => a.date.localeCompare(c.date));
+      const matches = db.matches
+        .flatMap((m) => {
+          const entry = m.scores.find((x) => x.playerId === p.id);
+          return entry ? [{ id: m.id, date: m.date, opponent: m.opponent, stats: entry.stats }] : [];
+        })
+        .sort((a, c) => c.date.localeCompare(a.date));
+      // Academy best in the player's sport: anonymous maxima, same as backend/src/services/peers.js
+      const per = new Map<string, { n: number; sums: Record<string, number> }>();
+      for (const m of db.matches.filter((x) => x.sport === p.sport)) {
+        for (const e of m.scores) {
+          const row = per.get(e.playerId) ?? { n: 0, sums: {} };
+          row.n++;
+          for (const f of SPORT_STATS[p.sport]) row.sums[f.key] = (row.sums[f.key] ?? 0) + (e.stats[f.key] ?? 0);
+          per.set(e.playerId, row);
+        }
+      }
+      const best = Object.fromEntries(SPORT_STATS[p.sport].map((f) => [f.key, 0]));
+      let most = 0;
+      for (const { n, sums } of per.values()) {
+        most = Math.max(most, n);
+        for (const f of SPORT_STATS[p.sport]) best[f.key] = Math.max(best[f.key], sums[f.key] / n);
+      }
+      return ok({ history: { sessions, matches, peers: { matches: most, best } } });
+    }
+    if (method === "PATCH" && seg.length === 2) {
+      if (me.role === "scout") return forbidden();
+      const p = db.players.find((x) => x.id === seg[1]);
+      if (!p || (me.role === "player" && p.id !== me.playerId)) return fail(404, "Player not found.");
+
+      const set: Partial<Record<"photoUrl" | "heightCm" | "weightKg" | "nationality", string | number>> = {};
+      const clear: ("photoUrl" | "heightCm" | "weightKg" | "nationality")[] = [];
+      const wholeNumber = (v: unknown, min: number, max: number) => Number.isInteger(v) && (v as number) >= min && (v as number) <= max;
+
+      if (b.heightCm !== undefined) {
+        if (b.heightCm === null) clear.push("heightCm");
+        else if (!wholeNumber(b.heightCm, 50, 250)) return fail(400, "heightCm must be a whole number between 50 and 250.");
+        else set.heightCm = b.heightCm as number;
+      }
+      if (b.weightKg !== undefined) {
+        if (b.weightKg === null) clear.push("weightKg");
+        else if (!wholeNumber(b.weightKg, 10, 250)) return fail(400, "weightKg must be a whole number between 10 and 250.");
+        else set.weightKg = b.weightKg as number;
+      }
+      if (b.nationality !== undefined) {
+        const n = typeof b.nationality === "string" ? b.nationality.trim() : null;
+        if (b.nationality === null) clear.push("nationality");
+        else if (!n || n.length < 2 || n.length > 56) return fail(400, "nationality must be 2-56 characters.");
+        else if (!/^[\p{L}\p{M} .'’-]+$/u.test(n)) return fail(400, "nationality may only use letters, spaces, dot, dash and apostrophe.");
+        else set.nationality = n;
+      }
+      if (b.photoUrl !== undefined) {
+        // Demo mode keeps the shrunken picture itself. The real API only accepts our own Cloudinary URLs.
+        if (b.photoUrl === null) clear.push("photoUrl");
+        else if (typeof b.photoUrl !== "string" || !b.photoUrl.startsWith("data:image/") || b.photoUrl.length > 600_000) {
+          return fail(400, "photoUrl must be the photo you just uploaded for this player.");
+        } else set.photoUrl = b.photoUrl;
+      }
+      if (Object.keys(set).length + clear.length === 0) {
+        return fail(400, "Send at least one of: photoUrl, heightCm, weightKg, nationality.");
+      }
+      Object.assign(p, set);
+      for (const k of clear) delete p[k];
+      saveDb(db);
+      return ok({ player: statsFor(db, p) });
+    }
+    if (method === "POST" && seg.length === 3 && seg[2] === "photo-signature") {
+      if (me.role === "scout") return forbidden();
+      return fail(503, "Demo mode keeps photos in the browser, so no upload ticket is needed.");
     }
     if (method === "POST" && seg.length === 1) {
       if (me.role !== "coach") return forbidden();
@@ -259,10 +340,23 @@ export async function mockRequest(method: string, path: string, body?: unknown):
       if (!isSport(b.sport)) return BAD_SPORT;
       const opponent = String(b.opponent ?? "").trim();
       if (!opponent || opponent.length > 80) return fail(400, "opponent must be 1-80 characters.");
-      const scores = b.scores as { playerId: string; score: number }[] | undefined;
-      if (!Array.isArray(scores) || scores.length === 0) return fail(400, "Add at least one player to the score sheet.");
-      if (scores.some((s) => !Number.isInteger(s.score) || s.score < 0 || s.score > 1000)) {
-        return fail(400, "score must be a whole number between 0 and 1000.");
+      const rawScores = b.scores as { playerId: string; stats?: Record<string, unknown> }[] | undefined;
+      if (!Array.isArray(rawScores) || rawScores.length === 0) return fail(400, "Add at least one player to the score sheet.");
+      const fields = SPORT_STATS[b.sport];
+      const scores: MockMatch["scores"] = [];
+      for (const s of rawScores) {
+        const given = s.stats && typeof s.stats === "object" && !Array.isArray(s.stats) ? s.stats : {};
+        const unknown = Object.keys(given).filter((k) => !fields.some((f) => f.key === k));
+        if (unknown.length > 0) return fail(400, `${b.sport} does not record: ${unknown.join(", ")}. Use ${fields.map((f) => f.key).join(", ")}.`);
+        const stats: Record<string, number> = {};
+        for (const f of fields) {
+          const v = given[f.key] ?? 0;
+          if (typeof v !== "number" || !Number.isInteger(v) || v < 0 || v > 1000) {
+            return fail(400, `${f.label} must be a whole number between 0 and 1000.`);
+          }
+          stats[f.key] = v;
+        }
+        scores.push({ playerId: s.playerId, stats });
       }
       if (new Set(scores.map((s) => s.playerId)).size !== scores.length) {
         return fail(400, "A player can appear only once on the score sheet.");

@@ -2,22 +2,28 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, CalendarPlus } from "@phosphor-icons/react";
+import { useSportFilter } from "@/components/SportFilter";
 import { SportSelect } from "@/components/SportSelect";
 import { Button, Card, EmptyState, ErrorNote, Field, LinkButton, ListSkeleton, PageHeader, inputClass, cx } from "@/components/ui";
 import { api, ApiRequestError, errorMessage } from "@/lib/api";
 import { formatDate, todayISO } from "@/lib/format";
+import { SPORT_STATS } from "@/lib/sportStats";
 import { useLoad } from "@/lib/useLoad";
 import type { RefusedPlayer, Sport } from "@/types";
 
 export default function NewMatchPage() {
   const router = useRouter();
   const [date, setDate] = useState(todayISO());
-  const [sport, setSport] = useState<Sport>("Football");
+  const { sport: filter } = useSportFilter();
+  const [sport, setSport] = useState<Sport>(filter || "Football");
+  useEffect(() => {
+    if (filter) setSport(filter);
+  }, [filter]);
   const [opponent, setOpponent] = useState("");
   const [played, setPlayed] = useState<Record<string, boolean>>({});
-  const [scores, setScores] = useState<Record<string, string>>({});
+  const [scores, setScores] = useState<Record<string, Record<string, string>>>({}); // playerId -> stat key -> typed value
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refused, setRefused] = useState<RefusedPlayer[]>([]);
@@ -28,6 +34,7 @@ export default function NewMatchPage() {
     return { all: all.players, presentIds: new Set(eligible.players.map((p) => p.id)) };
   }, [date, sport]);
 
+  const fields = SPORT_STATS[sport];
   const roster = data?.all ?? [];
   const presentIds = data?.presentIds ?? new Set<string>();
   const chosen = roster.filter((p) => presentIds.has(p.id) && played[p.id]);
@@ -46,11 +53,13 @@ export default function NewMatchPage() {
     setRefused([]);
     if (!date) return setError("Pick the match date.");
     if (!opponent.trim()) return setError("Enter the opponent's name.");
-    if (chosen.length === 0) return setError("Tick at least one player who played, and enter a score.");
+    if (chosen.length === 0) return setError("Tick at least one player who played, and enter their numbers.");
 
-    const sheet = chosen.map((p) => ({ playerId: p.id, score: Number(scores[p.id] ?? "") }));
-    const bad = chosen.find((p, i) => scores[p.id] === undefined || scores[p.id] === "" || !Number.isInteger(sheet[i].score) || sheet[i].score < 0);
-    if (bad) return setError(`Enter a score for ${bad.name}. Use a whole number, 0 or more.`);
+    // A box left empty counts as 0, so the coach only types what happened.
+    const sheet = chosen.map((p) => ({
+      playerId: p.id,
+      stats: Object.fromEntries(fields.map((f) => [f.key, Number(scores[p.id]?.[f.key] || "0")])),
+    }));
 
     setBusy(true);
     try {
@@ -67,13 +76,16 @@ export default function NewMatchPage() {
 
   return (
     <>
-      <Link href="/coach/matches" className="motion-base mb-4 inline-flex items-center gap-2 rounded-lg px-1 py-1 caption-1 text-muted hover:text-white">
+      <Link
+        href="/coach/matches"
+        className="motion-base mb-4 inline-flex items-center gap-2 rounded-lg px-2 py-1 caption-1 text-ink-2 hover:bg-hover hover:text-ink"
+      >
         <ArrowLeft size={16} aria-hidden />
         All matches
       </Link>
       <PageHeader
         title="Record a match"
-        subtitle="Only players marked Present in a session of that sport on that date can go on the score sheet."
+        subtitle="Only players marked present in a session of that sport on that date can go on the score sheet."
       />
 
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
@@ -85,12 +97,19 @@ export default function NewMatchPage() {
             <SportSelect value={sport} onChange={(v) => changeDay(() => setSport(v))} />
           </Field>
           <Field label="Opponent">
-            <input className={inputClass} value={opponent} onChange={(e) => setOpponent(e.target.value)} autoComplete="off" />
+            <input
+              className={inputClass}
+              value={opponent}
+              onChange={(e) => setOpponent(e.target.value)}
+              autoComplete="off"
+            />
           </Field>
         </Card>
 
         <div>
-          <h2 className="title-2 mb-3">Score sheet for {date ? formatDate(date) : "the chosen date"}</h2>
+          <h2 className="title-2 mb-3 text-ink">
+            Score sheet for {date ? formatDate(date) : "the chosen date"}
+          </h2>
           {loading ? (
             <ListSkeleton rows={3} />
           ) : loadError ? (
@@ -115,34 +134,47 @@ export default function NewMatchPage() {
                   const here = presentIds.has(p.id);
                   const on = here && !!played[p.id];
                   return (
-                    <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 border-t border-line p-4 first:border-t-0">
-                      <label className={cx("flex min-w-0 items-center gap-3", here ? "cursor-pointer" : "opacity-60")}>
+                    <li
+                      key={p.id}
+                      className="flex flex-wrap items-center justify-between gap-3 border-t border-line p-4 first:border-t-0"
+                    >
+                      <label className={cx("flex min-w-0 items-center gap-3", here ? "cursor-pointer" : "opacity-45")}>
                         <input
                           type="checkbox"
-                          className="size-5 accent-white"
+                          className="size-5 cursor-pointer accent-primary"
                           disabled={!here}
                           checked={on}
                           onChange={(e) => setPlayed((s) => ({ ...s, [p.id]: e.target.checked }))}
                         />
                         <span className="min-w-0">
-                          <span className="title-3 block truncate">{p.name}</span>
-                          <span className="caption-5 text-muted">
+                          <span className="title-3 block truncate text-ink">{p.name}</span>
+                          <span className={cx("caption-5", here ? "text-ink-2" : "text-muted")}>
                             {here ? "Present, can be scored" : "Not on the sheet: absent or not marked that day"}
                           </span>
                         </span>
                       </label>
                       {here && (
-                        <label className="flex items-center gap-2">
-                          <span className="caption-1 text-muted">Score</span>
-                          <input
-                            className={cx(inputClass, "!w-20 text-center")}
-                            inputMode="numeric"
-                            disabled={!on}
-                            value={scores[p.id] ?? ""}
-                            onChange={(e) => setScores((s) => ({ ...s, [p.id]: e.target.value.replace(/\D/g, "").slice(0, 4) }))}
-                            aria-label={`Score for ${p.name}`}
-                          />
-                        </label>
+                        <div className="flex flex-wrap items-center gap-3">
+                          {fields.map((f) => (
+                            <label key={f.key} className="flex flex-col gap-1">
+                              <span className="caption-1 text-ink-2">{f.label}</span>
+                              <input
+                                className={cx(inputClass, "!w-24 text-center text-lg")}
+                                inputMode="numeric"
+                                disabled={!on}
+                                placeholder="0"
+                                value={scores[p.id]?.[f.key] ?? ""}
+                                onChange={(e) =>
+                                  setScores((s) => ({
+                                    ...s,
+                                    [p.id]: { ...s[p.id], [f.key]: e.target.value.replace(/\D/g, "").slice(0, 4) },
+                                  }))
+                                }
+                                aria-label={`${f.label} for ${p.name}`}
+                              />
+                            </label>
+                          ))}
+                        </div>
                       )}
                     </li>
                   );

@@ -40,3 +40,19 @@ export function readyGaps(p: PlayerStats): string[] {
   if (m > 0) gaps.push(`Play ${plural(m, "more match", "more matches")}`);
   return gaps;
 }
+
+// "Olivier Giroud" -> first "Olivier", last "Giroud". A single name has no first part.
+export function splitName(name: string): { first: string; last: string } {
+  const parts = name.trim().split(/\s+/);
+  const last = parts.pop() ?? name;
+  return { first: parts.join(" "), last };
+}
+
+// Whether this person may change this player's profile and photo (AGENTS.md §3).
+export function canEditProfile(user: { role: Role; playerId?: string } | null, playerId: string): boolean {
+  return !!user && (user.role === "coach" || (user.role === "player" && user.playerId === playerId));
+}
+
+// Where a player's profile page lives for each role.
+export const profileHref = (role: Role, playerId: string) =>
+  role === "coach" ? `/coach/players/${playerId}` : role === "scout" ? `/scout/players/${playerId}` : "/me";

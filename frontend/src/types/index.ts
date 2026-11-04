@@ -2,7 +2,7 @@
 
 export type Role = "coach" | "player" | "scout";
 export type Mark = "present" | "absent";
-export const SPORTS = ["Football", "Cricket", "Hockey", "Athletics", "Kabaddi"] as const;
+export const SPORTS = ["Football", "Cricket", "Badminton", "Volleyball", "Kabaddi", "Hockey", "Table Tennis"] as const;
 export type Sport = (typeof SPORTS)[number];
 
 export interface SessionUser {
@@ -17,6 +17,38 @@ export interface Player {
   name: string;
   age: number;
   sport: Sport;
+  photoUrl?: string; // https Cloudinary URL, or a data URL in mock mode. Absent when no photo
+  heightCm?: number; // whole number, 50 to 250. Absent when not set
+  weightKg?: number; // whole number, 10 to 250. Absent when not set
+  nationality?: string; // 2 to 56 characters. Absent when not set
+}
+
+// Sent to PATCH /api/players/:id. Every field is optional. null clears the value.
+export interface PlayerProfileUpdate {
+  photoUrl?: string | null;
+  heightCm?: number | null;
+  weightKg?: number | null;
+  nationality?: string | null;
+}
+
+// Returned by GET /api/players/:id/history. Same visibility as GET /api/players/:id.
+export interface PlayerHistory {
+  sessions: { id: string; date: string; sport: Sport; mark: Mark }[]; // closed sessions, oldest first
+  matches: { id: string; date: string; opponent: string; stats: Record<string, number> }[]; // newest first
+  // The academy's best in this sport, no names: most matches by one player, and the highest per-match average of each stat.
+  peers: { matches: number; best: Record<string, number> };
+}
+
+// Returned by POST /api/players/:id/photo-signature: what the browser needs to upload to Cloudinary.
+export interface PhotoUploadTicket {
+  uploadUrl: string;
+  apiKey: string;
+  timestamp: number;
+  signature: string;
+  publicId: string;
+  overwrite: "true";
+  invalidate: "true";
+  allowedFormats: string;
 }
 
 export interface PlayerStats extends Player {
@@ -44,7 +76,7 @@ export interface PracticeSession {
 export interface ScoreEntry {
   playerId: string;
   playerName: string;
-  score: number;
+  stats: Record<string, number>; // keys from the sport's stat table (AGENTS.md §4)
 }
 
 export interface Match {

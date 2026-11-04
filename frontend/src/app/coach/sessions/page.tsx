@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CalendarPlus, CaretRight } from "@phosphor-icons/react";
+import { useSportFilter } from "@/components/SportFilter";
 import { SportSelect } from "@/components/SportSelect";
 import { Button, Card, EmptyState, ErrorNote, Field, ListSkeleton, PageHeader, StatusBadge, inputClass } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
@@ -18,7 +19,11 @@ export default function SessionsPage() {
   const [sport, setSport] = useState<Sport>("Football");
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const sessions = data?.sessions ?? [];
+  const { sport: filter } = useSportFilter();
+  useEffect(() => {
+    if (filter) setSport(filter);
+  }, [filter]);
+  const sessions = (data?.sessions ?? []).filter((s) => !filter || s.sport === filter);
 
   async function onOpen(e: React.FormEvent) {
     e.preventDefault();
@@ -38,11 +43,11 @@ export default function SessionsPage() {
     <>
       <PageHeader
         title="Sessions"
-        subtitle="Open a session, mark each player Present or Absent, then close it. A closed session is locked."
+        subtitle="Open a session, mark each player present or absent, then close it. Only closed sessions count toward readiness."
       />
 
       <Card className="mb-8 p-6">
-        <h2 className="title-2 mb-4">Open a session</h2>
+        <h2 className="title-2 mb-4 text-ink">Open a session</h2>
         <form onSubmit={onOpen} noValidate className="grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
           <Field label="Date">
             <input type="date" className={inputClass} value={date} onChange={(e) => setDate(e.target.value)} />
@@ -51,7 +56,7 @@ export default function SessionsPage() {
             <SportSelect value={sport} onChange={setSport} />
           </Field>
           <Button type="submit" busy={busy}>
-            <CalendarPlus size={20} aria-hidden />
+            <CalendarPlus size={18} aria-hidden />
             {busy ? "Opening" : "Open session"}
           </Button>
           {formError && (
@@ -62,7 +67,7 @@ export default function SessionsPage() {
         </form>
       </Card>
 
-      <h2 className="title-2 mb-3">All sessions</h2>
+      <h2 className="title-2 mb-3 text-ink">All sessions</h2>
       {loading ? (
         <ListSkeleton rows={3} />
       ) : error ? (
@@ -70,28 +75,29 @@ export default function SessionsPage() {
       ) : sessions.length === 0 ? (
         <EmptyState
           icon={<CalendarPlus size={32} aria-hidden />}
-          title="No sessions yet"
-          body="Open your first practice session above. Every player of that sport joins the roster."
+          title={filter ? `No ${filter} sessions yet` : "No sessions yet"}
+          body="Open your first session above. Every player of that sport joins the roster."
         />
       ) : (
         <ul className="flex flex-col gap-3">
           {sessions.map((s) => {
             const marked = s.attendance.filter((a) => a.mark).length;
+            const total = s.attendance.length;
             return (
               <li key={s.id}>
                 <Link
                   href={`/coach/sessions/${s.id}`}
-                  className="motion-base flex items-center justify-between gap-4 rounded-2xl border border-line bg-surface p-4 hover:bg-raised active:scale-[0.99]"
+                  className="motion-base flex items-center justify-between gap-4 rounded-xl border border-line bg-surface p-4 hover:bg-raised active:scale-[0.99]"
                 >
                   <div className="min-w-0">
-                    <p className="title-3">{formatDate(s.date)}</p>
+                    <p className="title-3 text-ink">{formatDate(s.date)}</p>
                     <p className="caption-5 text-muted">
-                      {s.sport} · {marked} of {s.attendance.length} marked
+                      {s.sport}, {total === 0 ? "no players on the roster" : `${marked} of ${total} marked`}
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
                     <StatusBadge status={s.status} />
-                    <CaretRight size={20} className="text-muted" aria-hidden />
+                    <CaretRight size={16} className="text-muted" aria-hidden />
                   </div>
                 </Link>
               </li>
