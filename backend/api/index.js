@@ -1,1 +1,3 @@
-// Vercel entry: exports the Express app from src/app.js
+import app from "../src/app.js";
+
+export default app;

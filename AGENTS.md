@@ -60,6 +60,9 @@ So the frontend calls `fetch("/api/players")` (relative URL), and the login cook
 MONGODB_URI=mongodb+srv://...
 JWT_SECRET=<long random string>
 PORT=4000
+CLOUDINARY_CLOUD_NAME=<from the Cloudinary dashboard>
+CLOUDINARY_API_KEY=<from the Cloudinary dashboard>
+CLOUDINARY_API_SECRET=<from the Cloudinary dashboard, never commit or paste it anywhere>
 ```
 
 `frontend/.env.local`
@@ -74,10 +77,20 @@ NEXT_PUBLIC_USE_MOCKS=false            # true = use mock data, no backend needed
 
 These are the rules the code must follow. Marked **[decision]** where we chose a default. Change here first if the team disagrees.
 
+### Scout accounts (coach only)
+| Method | Path | Who | Body | Result |
+|---|---|---|---|---|
+| GET | `/api/users/scouts` | coach | – | 200 `{ scouts: ScoutAccount[] }`, pending first |
+| POST | `/api/users/scouts` | coach | `{ email, password }` | 201 `{ scout }` (active at once). 409 email already used |
+| PATCH | `/api/users/scouts/:id/approve` | coach | – | 200 `{ scout }` with status active. 404 if not a scout |
+| DELETE | `/api/users/scouts/:id` | coach | – | 200 `{ ok: true }`. Rejects a pending request or removes an active scout. Only scout accounts can be deleted here (404 otherwise) |
+
 ### Players
 - Fields: name, age, sport. One academy, so no academy field.
 - Only the coach adds players. Adding a player also creates that player's login (username + password).
 - Each player has exactly one sport.
+- **Profile (all optional):** photo, height in cm, weight in kg, nationality. **[decision]** A player edits their own profile and photo. The coach edits anyone's. A scout cannot edit.
+- **Photos live in Cloudinary** (free account). The browser uploads straight to Cloudinary using a signature from our backend, then tells the backend the resulting URL. Photos never pass through Vercel, and the backend accepts only URLs from our own Cloudinary account and that player's own folder path.
 
 ### Sessions (practice)
 Lifecycle: **Open → Mark → Close**.
@@ -88,8 +101,20 @@ Lifecycle: **Open → Mark → Close**.
 - **[decision]** One session per sport per date.
 
 ### Matches
-- Fields: date, sport, opponent, and a score sheet: list of `{ player, score }`.
-- Score is a whole number ≥ 0.
+- Fields: date, sport, opponent, and a score sheet: list of `{ player, stats }`.
+- `stats` holds the numbers the sport defines (table below), each a whole number 0 to 1000. A stat left out counts as 0. A key the sport does not define is refused with 400.
+
+| Sport | Stats recorded per player per match (`key`) |
+|---|---|
+| Football | `goals`, `assists` |
+| Cricket | `runs`, `wickets`, `catches` |
+| Badminton | `gamesWon`, `pointsWon` |
+| Volleyball | `points`, `spikes`, `blocks`, `aces` |
+| Kabaddi | `raidPoints`, `tacklePoints` |
+| Hockey | `goals`, `assists` |
+| Table Tennis | `gamesWon`, `pointsWon` |
+
+The table lives in `backend/src/constants.js` (`SPORT_STATS`) and `frontend/src/lib/sportStats.ts`. Change both together.
 - **[decision]** A player can be on the sheet only if they were marked **present** in a session of the same sport on the same date. Anyone else (absent, or no session that day) is refused with HTTP 422, and the response names the refused players.
 - A player must be of the match's sport.
 
@@ -102,14 +127,21 @@ Lifecycle: **Open → Mark → Close**.
   - Compare with integers to avoid float bugs: `held > 0 && present * 4 >= held * 3`.
   - Exactly 75% counts as Ready.
 
+### Accounts and scout access
+- The coach account is created by the seed. The coach creates player accounts (with the player) and can create scout accounts.
+- **[decision]** A scout can also sign up on the sign-in page with an **email** and password (`/register`). That account is **pending**: it cannot sign in and sees nothing until the coach approves it. This is what stops anyone from becoming a scout.
+- Scouts sign in with their email in the same box as the username (login accepts either).
+- The coach approves or rejects pending requests, creates scouts directly (active at once), and can remove a scout. A removed scout loses access immediately, even with a valid cookie (the backend checks scouts against the database on each request).
+- A wrong password always answers "Wrong username or password", so nobody can learn which emails are waiting. Only the right password on a pending account answers "waiting for the coach".
+
 ### Who sees what (enforced in the backend, not just hidden in the UI)
 | Role | Can see | Can do |
 |---|---|---|
-| coach | everything | add players, open/mark/close sessions, record matches |
-| scout | **only Ready players** (with their stats) | nothing else, read-only |
-| player | **only their own row** | nothing else, read-only |
+| coach | everything | add players, edit any player's profile and photo, open/mark/close sessions, record matches |
+| scout | **only Ready players** (with their stats and photos) | nothing else, read-only |
+| player | **only their own row** | edit their own profile and photo, nothing else |
 
-Calling an API you are not allowed to use returns 401 (not logged in) or 403 (wrong role). A scout asking for a non-Ready player, or a player asking for someone else, gets 404.
+Calling an API you are not allowed to use returns 401 (not logged in) or 403 (wrong role). A scout asking for a non-Ready player, or a player asking for someone else (including trying to edit them), gets 404.
 
 ### Dates
 Store and send dates as plain strings `YYYY-MM-DD` (no time, no timezone). This avoids "match is on a different day" bugs between India time and UTC on Vercel.
@@ -123,7 +155,7 @@ This section **is** the contract. The backend is plain JS, so it has no type fil
 ```ts
 type Role = "coach" | "player" | "scout";
 type Mark = "present" | "absent";
-const SPORTS = ["Football", "Cricket", "Hockey", "Athletics", "Kabaddi"];   // backend: backend/src/constants.js
+const SPORTS = ["Football", "Cricket", "Badminton", "Volleyball", "Kabaddi", "Hockey", "Table Tennis"];   // backend: backend/src/constants.js
 type Sport = (typeof SPORTS)[number];
 
 interface SessionUser {
@@ -133,11 +165,50 @@ interface SessionUser {
   playerId?: string;          // only for role "player"
 }
 
+// What the coach sees in GET /api/users/scouts
+interface ScoutAccount {
+  id: string;
+  email: string;
+  status: "pending" | "active";   // pending = signed up by email, waiting for the coach
+  createdAt: string;              // ISO date-time
+}
+
 interface Player {
   id: string;                 // Mongo _id as a string; never send "_id" or "__v"
   name: string;
   age: number;
   sport: Sport;
+  photoUrl?: string;          // https Cloudinary URL. Absent when no photo
+  heightCm?: number;          // whole number, 50 to 250. Absent when not set
+  weightKg?: number;          // whole number, 10 to 250. Absent when not set
+  nationality?: string;       // 2 to 56 characters. Absent when not set
+}
+
+// Sent to PATCH /api/players/:id. Every field optional. null clears the value.
+interface PlayerProfileUpdate {
+  photoUrl?: string | null;
+  heightCm?: number | null;
+  weightKg?: number | null;
+  nationality?: string | null;
+}
+
+// Returned by GET /api/players/:id/history. Same visibility as GET /api/players/:id.
+interface PlayerHistory {
+  sessions: { id: string; date: string; sport: Sport; mark: Mark }[];   // closed sessions the player was marked in, oldest first
+  matches: { id: string; date: string; opponent: string; stats: Record<string, number> }[]; // matches the player is on the sheet of, newest first
+  peers: { matches: number; best: Record<string, number> };   // academy best in the sport: most matches by one player, highest per-match average of each stat. No names
+}
+
+// Returned by POST /api/players/:id/photo-signature (everything the browser needs to upload to Cloudinary)
+interface PhotoUploadTicket {
+  uploadUrl: string;          // https://api.cloudinary.com/v1_1/<cloud>/image/upload
+  apiKey: string;
+  timestamp: number;
+  signature: string;
+  publicId: string;           // academy-desk/players/<playerId>, so each player has exactly one photo
+  overwrite: "true";
+  invalidate: "true";
+  allowedFormats: string;     // "jpg,jpeg,png,webp"
 }
 
 interface PlayerStats extends Player {
@@ -165,7 +236,7 @@ interface PracticeSession {
 interface ScoreEntry {
   playerId: string;
   playerName: string;
-  score: number;
+  stats: Record<string, number>;   // every stat key of the match's sport, from the table in §3
 }
 
 interface Match {
@@ -191,7 +262,8 @@ All under `/api`. JSON in, JSON out. Errors always use the `ApiError` shape. Aut
 ### Auth
 | Method | Path | Who | Body | Success |
 |---|---|---|---|---|
-| POST | `/api/auth/login` | anyone | `{ username, password }` | 200 `{ user: SessionUser }` + sets cookie. 401 on bad login |
+| POST | `/api/auth/login` | anyone | `{ username, password }` (`username` may be a scout's email) | 200 `{ user: SessionUser }` + sets cookie. 401 on bad login. **403** if the right password belongs to a scout still pending approval |
+| POST | `/api/auth/register-scout` | anyone | `{ email, password }` | 201 `{ ok, message }`. Creates a **pending** scout. 400 bad email or password under 6 characters, 409 email already used |
 | POST | `/api/auth/logout` | anyone | – | 200 `{ ok: true }`, clears cookie |
 | GET | `/api/auth/me` | logged in | – | 200 `{ user: SessionUser }`, else 401 |
 
@@ -201,6 +273,9 @@ All under `/api`. JSON in, JSON out. Errors always use the `ApiError` shape. Aut
 | GET | `/api/players` | coach, scout, player | – | 200 `{ players: PlayerStats[] }`. **Coach: all. Scout: only ready. Player: array with only themselves.** Optional `?sport=` |
 | GET | `/api/players/:id` | coach, scout, player | – | 200 `{ player: PlayerStats }`. Scout/player rules above → 404 |
 | POST | `/api/players` | coach | `{ name, age, sport, username, password }` | 201 `{ player: Player }`. 409 if username taken, 400 on bad input |
+| GET | `/api/players/:id/history` | coach, scout, player | – | 200 `{ history: PlayerHistory }`. Same rules as `GET /api/players/:id` (scout: Ready only, player: own only, else 404) |
+| PATCH | `/api/players/:id` | coach (any), player (own only) | `PlayerProfileUpdate` | 200 `{ player: PlayerStats }`. 400 on bad input or a `photoUrl` that is not this player's Cloudinary URL. 403 scout. 404 player editing someone else |
+| POST | `/api/players/:id/photo-signature` | coach (any), player (own only) | – | 200 `{ ticket: PhotoUploadTicket }`. 503 if Cloudinary is not configured. 403 scout. 404 player asking for someone else |
 
 ### Sessions
 | Method | Path | Who | Body | Success |
@@ -209,14 +284,14 @@ All under `/api`. JSON in, JSON out. Errors always use the `ApiError` shape. Aut
 | POST | `/api/sessions` | coach | `{ date, sport }` | 201 `{ session }`. 409 if one already exists for that sport+date |
 | GET | `/api/sessions/:id` | coach | – | 200 `{ session }` |
 | PATCH | `/api/sessions/:id/attendance` | coach | `{ marks: [{ playerId, mark }] }` | 200 `{ session }`. **409 if closed**. 400 if player not on roster |
-| POST | `/api/sessions/:id/close` | coach | – | 200 `{ session }`. 409 if already closed or anyone unmarked |
+| POST | `/api/sessions/:id/close` | coach | – | 200 `{ session }`. 409 if already closed or anyone unmarked (then `details.unmarked: [{ playerId, playerName }]`) |
 
 ### Matches
 | Method | Path | Who | Body | Success |
 |---|---|---|---|---|
 | GET | `/api/matches` | coach | – | 200 `{ matches: Match[] }`, newest first |
 | GET | `/api/matches/eligible?date=&sport=` | coach | – | 200 `{ players: Player[] }`: who was present that day, to build the sheet |
-| POST | `/api/matches` | coach | `{ date, sport, opponent, scores: [{ playerId, score }] }` | 201 `{ match }`. **422** `{ error, details: { refused: [...] } }` if any player was not present that day. Nothing is saved if anyone is refused |
+| POST | `/api/matches` | coach | `{ date, sport, opponent, scores: [{ playerId, stats: { [key]: number } }] }` | 201 `{ match }`. **422** `{ error, details: { refused: [...] } }` if any player was not present that day. Nothing is saved if anyone is refused |
 
 ### Health
 | GET | `/api/health` | anyone | – | 200 `{ ok: true }` (used to check the deploy) |
@@ -231,18 +306,19 @@ Each person owns one folder. Touching the other folder needs a heads-up. `AGENTS
 ### `backend/` (Suraj): Node.js + Express, plain JS
 ```
 backend/
-  package.json            "type": "module"; scripts: dev, start, seed, seed:empty, test
+  package.json            "type": "module"; scripts: dev, start, seed, seed:empty, test (`node --test`)
   vercel.json             rewrites all paths to /api so Express handles them
   .env.example
   api/index.js            Vercel entry: export default app
   src/
     app.js                builds the Express app (json, cookie-parser, cors in dev, routes, error handler)
     server.js             local only: connects DB and app.listen(PORT)
-    constants.js          SPORTS, ROLES, MARKS
+    constants.js          SPORTS, SPORT_STATS, ROLES, MARKS
     db.js                 cached Mongoose connection (serverless-safe)
     models/               User.js, Player.js, Session.js, Match.js
     middleware/auth.js    requireAuth, requireRole(...roles)
     services/stats.js     attendance + Ready calculation (one place only)
+    services/matchRules.js  who may go on a match sheet (pure function, unit-tested)
     routes/               auth.js, players.js, sessions.js, matches.js
     utils/                httpError.js, validate.js, toJSON helpers (id instead of _id)
   scripts/seed.js
@@ -271,37 +347,52 @@ frontend/
 
 ## 7. Backend task list (Suraj)
 
-- [ ] **B0. Setup** `backend/` (skeleton files and `package.json` scripts already exist): install `express mongoose bcryptjs jsonwebtoken cookie-parser cors dotenv`, dev `nodemon`. `app.js` + `server.js` + `/api/health`. `.env.example`.
-- [ ] B1. `db.js`: cached Mongoose connection.
-- [ ] B2. Models: `User`, `Player`, `Session`, `Match`. Unique index on `User.username` and on `Session (sport, date)`.
-- [ ] B3. `middleware/auth.js` + login / logout / me routes.
-- [ ] B4. `services/stats.js`: one function `getPlayerStats(filter)` used by every players route. Tests for the 75% boundary.
-- [ ] B5. Players routes, with the role filters from §3.
-- [ ] B6. Sessions routes: open, mark, close, lock enforcement.
-- [ ] B7. Matches routes: eligibility check, 422 with refused list, all-or-nothing save.
-- [ ] B8. Central error handler: always returns `ApiError`, never a stack trace.
-- [ ] B9. Seed script (§9).
+- [x] **B0. Setup** `backend/` (skeleton files and `package.json` scripts already exist): install `express mongoose bcryptjs jsonwebtoken cookie-parser cors dotenv`, dev `nodemon`. `app.js` + `server.js` + `/api/health`. `.env.example`.
+- [x] B1. `db.js`: cached Mongoose connection.
+- [x] B2. Models: `User`, `Player`, `Session`, `Match`. Unique index on `User.username` and on `Session (sport, date)`.
+- [x] B3. `middleware/auth.js` + login / logout / me routes.
+- [x] B4. `services/stats.js`: one function `getPlayerStats(filter)` used by every players route. Tests for the 75% boundary.
+- [x] B5. Players routes, with the role filters from §3.
+- [x] B6. Sessions routes: open, mark, close, lock enforcement.
+- [x] B7. Matches routes: eligibility check, 422 with refused list, all-or-nothing save.
+- [x] B8. Central error handler: always returns `ApiError`, never a stack trace.
+- [x] B9. Seed script (§9).
+- [x] B11. Player profile and photos: `heightCm`, `weightKg`, `nationality`, `photoUrl` on `Player`; `PATCH /api/players/:id`; `POST /api/players/:id/photo-signature` (signed Cloudinary upload, no SDK); Cloudinary env vars; tests including Cloudinary's documented signature example.
+- [x] B12. `GET /api/players/:id/history` for the profile page (attendance trend, session list, recent matches).
+- [x] B13. Seven sports with per-sport stat lines on matches (`stats`), `SPORT_STATS`, 16-player seed.
+- [x] B14. Scout access: `email` and `status` on `User`, `POST /api/auth/register-scout`, login by email with the pending 403, `/api/users/scouts` routes, scouts re-checked against the database on every request. Seed adds a pending scout `new.scout@example.com` / `scout123`.
 - [ ] B10. Deploy `backend/` to Vercel, set env vars, run seed against Atlas, give `BACKEND_URL` to the teammate.
 
 ## 8. Frontend task list (teammate)
 
 Independent from day one: work with `NEXT_PUBLIC_USE_MOCKS=true` until the backend is up. Every API error message must be shown to the user (e.g. "Chandan was absent on 2026-11-01").
 
-- [ ] **F0. Setup** `frontend/` (skeleton files already exist, so don't run `create-next-app`, it refuses a non-empty folder): `npm init -y`, `npm i next react react-dom`, `npm i -D typescript @types/react @types/node tailwindcss @tailwindcss/postcss postcss`, add `dev/build/start` scripts, `tsconfig.json`, `postcss.config.mjs`. Then fill `next.config.ts` (`/api` rewrite) and `src/types/index.ts` from §4.
-- [ ] F1. `lib/api.ts` + `mocks/` with data matching §9.
-- [ ] F2. `/login`: form, after login go to the user's home by role.
-- [ ] F3. Shared layout: top bar with username, role, logout. Mobile-friendly (coach uses a phone on the field).
-- [ ] F4. **Route guarding**: a `RoleGuard` (or server layout) calls `/api/auth/me`. Not logged in → `/login`. Wrong role → own home (`coach → /coach`, `scout → /scout`, `player → /me`). This is only for UX; the backend does the real blocking.
-- [ ] F5. **Coach**
+- [x] **F0. Setup** `frontend/` (skeleton files already exist, so don't run `create-next-app`, it refuses a non-empty folder): `npm init -y`, `npm i next react react-dom`, `npm i -D typescript @types/react @types/node tailwindcss @tailwindcss/postcss postcss`, add `dev/build/start` scripts, `tsconfig.json`, `postcss.config.mjs`. Then fill `next.config.ts` (`/api` rewrite) and `src/types/index.ts` from §4.
+- [x] F1. `lib/api.ts` + `mocks/` with data matching §9.
+- [x] F2. `/login`: form, after login go to the user's home by role.
+- [x] F3. Shared layout: top bar with username, role, logout. Mobile-friendly (coach uses a phone on the field).
+- [x] F4. **Route guarding**: a `RoleGuard` (or server layout) calls `/api/auth/me`. Not logged in → `/login`. Wrong role → own home (`coach → /coach`, `scout → /scout`, `player → /me`). This is only for UX; the backend does the real blocking.
+- [x] F5. **Coach**
   - `/coach`: Ready board: table of all players with attendance %, matches, Ready badge. Filter by sport.
-  - `/coach/players`: list + "Add player" form (name, age, sport, username, password).
+  - `/coach/players`: list only (cards or table). `/coach/profiles` ("Profiles", last in the sidebar): starts by asking whose profiles, **Players** or **Scouts**, and shows only that group's options. Players: a name filter, a closed "Add player" form (name, age, sport, username, password) and an "Edit profile" list that opens `/coach/players/[id]?edit=1`. Scouts: a closed "Create a scout" form, pending requests with Approve or Reject, and active scouts with Remove access.
   - `/coach/sessions`: list of sessions (open/closed badge) + "Open session" form (date, sport).
   - `/coach/sessions/[id]`: roster with Present / Absent toggle per player, "Close session" button. When closed: read-only with a locked badge.
   - `/coach/matches`: list of matches.
   - `/coach/matches/new`: date + sport + opponent, then load eligible players and enter a score for each who played. Show refused-player errors from the 422.
-- [ ] F6. **Scout** `/scout`: list of Ready players only (name, age, sport, attendance %, matches). Read-only.
-- [ ] F7. **Player** `/me`: their own row only: attendance %, sessions present/held, matches played, Ready or not (and what's missing, e.g. "needs 1 more match").
-- [ ] F8. Empty states and loading states on every list.
+- [x] F6. **Scout** `/scout`: list of Ready players only (name, age, sport, attendance %, matches). Read-only.
+- [x] F7. **Player** `/me`: their own row only: attendance %, sessions present/held, matches played, Ready or not (and what's missing, e.g. "needs 1 more match").
+- [x] F8. Empty states and loading states on every list.
+- [x] F10. Reference theme (navy football club look) and photos: photo avatars on every list, a swipeable squad carousel of photo cards, the profile showcase with the real photo, height, weight and nationality, and an edit panel with photo upload (player: own, coach: any). Mock mode stores the photo in the browser.
+- [x] F11. Profile page in the reference layout (navy kept): header with photo and body details, season tiles, attendance trend chart, trial status, recent matches, session history. Real data only. Profiles are pages: `/coach/players/[id]`, `/scout/players/[id]`, `/me`. Left sidebar navigation and player search (coach: everyone, scout: Ready players).
+- [x] F12. Seven sports. Per-sport stat fields on the match form (blank = 0), the stats on matches list and profile ("{Sport} stats" totals and per-match average), 16-player mock data matching §9.
+- [x] F13. "Match by match" charts on every profile: one small bar chart per stat of the sport, one bar per match (last 8), own scale from 0, value labels, hover and keyboard tooltip. The Recent matches list is the table view.
+- [x] F14. Profile restyled after a game-stats screen: Rating + headline strip, radar ("Performance"), Attendance and per-sport detail lists. Radar axes are Attendance, Matches and each sport stat (0 to 100 against the academy best); Rating is their plain average. Real data only, no letter grade. Backend: `history.peers` (anonymous academy maxima, `services/peers.js`).
+- [x] F15. Theme: the Onthi DESIGN.md palette after an unslop pass. Light #F7F7FD canvas with white cards (#E2E8F0 hairline, 16px cards, 12px controls, 6px tags, no shadows or gradients), indigo #6366F1 as the single accent (every action button, bars, present marks, selection; #4F46E5 for text and lines on white), lime #58CC02 only for Ready tags, orange #C2410C with a peach fill for alerts, absent marks and the 75% line, link purple #6D28D9, lilac #EDE9FE hover. Be Vietnam Pro at weight 600 for headings, titles and buttons, tabular figures. Signature detail: a small sport-coloured dot beside the sport name (`SportTag` in `components/ui.tsx`: Football lime, Cricket sky, Badminton purple, Volleyball peach, Kabaddi indigo, Hockey yellow, Table Tennis lilac). About 30% dark using the Onthi dark theme: sidebar #0C0C13, banner, stats strip and KPI tiles #1B1B21, indigo #7678F3 numbers; the current nav item is a surface step, not a solid block. Stat text is singular or plural (`statText` in `lib/sportStats.ts`: "1 goal", "2 goals"). Tokens in `app/globals.css`. Components use semantic names (`text-ink`, `bg-dark`, `text-on-dark`, `bg-primary`, `text-accent-ink`, `bg-go`), so do not write hex or Tailwind palette classes.
+- [x] F16. Global sport selector in the top bar (`components/SportFilter.tsx`, remembered in the browser). Coach: Ready board, Players, Sessions, Matches all follow it, and the add-player, open-session and record-match forms start on it. Scout: the Ready list follows it. Player search still searches everyone. Players (role) do not see it.
+- [x] F18. Scout access. Public `/register` (email, password, confirm; says the coach must approve). Login box is "Username or email" with a link to `/register`. Coach: Profiles is now the last sidebar item and holds a "Scout access" section (create a scout, approve or reject pending requests, remove an active scout with a confirm step) above the add-player form. Mocks follow the same rules (demo storage key `academy-mock-db-v3`).
+- [x] F19. Ready board: 3 KPI tiles, then the players. The attendance-by-session-day chart and the Needs attention panel were removed. Wherever there is a Table / Photo cards choice (`PlayersView`: Ready board, Players, scout page) the table is the default.
+- [x] F20. Profile management made compact: a Players / Scouts choice first (Scouts shows how many requests are waiting), then only that group's options (`components/PlayerManager.tsx`, `components/ScoutAccess.tsx`). Both "add" forms stay closed until their button is pressed, and the player list has a name filter.
+- [x] F17. Coach sidebar: new "Profiles" section (`/coach/profiles`) for profile management. Creating players moved out of Players, which is now a view. Edit links open the profile with the editor already open.
 - [ ] F9. Deploy `frontend/` to Vercel with `BACKEND_URL` set. This is the live URL we submit.
 
 ---
@@ -310,9 +401,11 @@ Independent from day one: work with `NEXT_PUBLIC_USE_MOCKS=true` until the backe
 
 `npm run seed` (in `backend/`) wipes the database and loads this. `npm run seed:empty` loads only the coach and scout accounts, so we can do the checks live from scratch.
 
-Accounts: `coach / coach123`, `scout / scout123`, players `aarav / aarav123`, `bina / bina123`, `chandan / chandan123`.
+Accounts: `coach / coach123`, `scout / scout123`, a pending scout `new.scout@example.com / scout123` (full seed only, for showing the approval flow), and one login per player: lowercase first name, password name + `123` (for example `dev / dev123`).
 
-All Football. Sessions (all closed): 2026-10-25, 2026-10-27, 2026-10-29, 2026-11-01. Matches: 2026-10-29 and 2026-11-01.
+16 players in 7 sports, each with 4 closed sessions and 2 matches with real stat lines: Football (Aarav, Bina, Chandan), Cricket (Dev, Esha, Farhan), Badminton (Gita, Harsh), Volleyball (Indu, Jay), Kabaddi (Kiran, Lakshmi), Hockey (Manoj, Nisha), Table Tennis (Omkar, Pooja). Not Ready: Chandan, Farhan, Harsh, Lakshmi. The Football table below is the one the four checks use.
+
+Football. Sessions (all closed): 2026-10-25, 2026-10-27, 2026-10-29, 2026-11-01. Matches: 2026-10-29 and 2026-11-01.
 
 | Player | 10-25 | 10-27 | 10-29 | 11-01 | Attendance | Matches | Ready |
 |---|---|---|---|---|---|---|---|
@@ -337,6 +430,16 @@ How each check is shown:
 - If the frontend needs something the API doesn't give, write it under **Open questions** below rather than working around it.
 - Competition rules: write our own prompts, don't paste or screenshot the challenge page into an AI, don't use other teams' code. No push after End.
 
-## 11. Open questions
+## 11. Frontend notes
+
+- Run it: `cd frontend && npm run dev`. `frontend/.env.local` has `NEXT_PUBLIC_USE_MOCKS=true` (demo data in the browser, no backend). Set it to `false` and set `BACKEND_URL` to use the real API. `NEXT_PUBLIC_*` values are fixed at build time, so restart or rebuild after changing it.
+- Mock data is stored in `localStorage`. To reset the demo, run `localStorage.clear()` in the browser console.
+- Visual rules come from the `landing-page-design` skill (Part B): Geist only, named text styles in `globals.css` (`heading-5`, `body-6`, `button-md`, ...), spacing from the 0/2/4/8/12/16/24/32/40/48/64/80/96 table, dark surfaces from the approved set, Phosphor icons, no hyphens in copy.
+- Theme: the navy blue football club look from the reference design wins over the generic dark colours in the skill (the user asked for it). The skill's type, spacing, motion and state rules still apply.
+- Deslop pass (`deslop-ui` skill): flat navy surfaces, one solid blue accent, colour only for real states (green present, red absent, amber ready). No gradients, glows, blurred blobs, dot grids, pulsing dots, all caps labels or glass cards. Blur is kept only on the floating nav bar. Radius scale: `rounded-lg` controls, `rounded-xl` panels, `rounded-md` tags, circles only for round things. Every number on a profile must come from the API: no invented jersey numbers, honours or decorative charts. Copy is sentence case, plain words, no exclamation marks.
+- Photos: the browser shrinks the picture first (longest side 1200px, JPEG), then uploads it. With mocks on, the picture is kept in the browser instead of Cloudinary. Cards use `object-fit: cover` and show a silhouette when a player has no photo.
+- On the real backend the match form lists everyone of the sport, and disables players who were not present that day (the server still refuses them with 422 if one gets through).
+
+## 12. Open questions
 
 - (none yet)
