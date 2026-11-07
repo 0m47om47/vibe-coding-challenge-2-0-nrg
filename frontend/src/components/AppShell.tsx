@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BrandMark } from "@/components/BrandMark";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Calendar, GearSix, IdentificationCard, Medal, SignOut, SoccerBall, Users, UserCircle } from "@phosphor-icons/react";
@@ -119,9 +120,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <>
       {/* Desktop: fixed left sidebar */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-on-dark/10 bg-dark-deep md:flex">
-        <Link href={items[0]?.href ?? "/"} className="flex flex-col gap-0.5 px-6 py-6">
-          <span className="heading-6 text-on-dark">Academy Desk</span>
-          {user && <span className="caption-4 truncate text-on-dark/70">{user.academy.name}</span>}
+        <Link href={items[0]?.href ?? "/"} className="flex items-center gap-3 px-6 py-6">
+          <BrandMark size={52} />
+          <span className="flex min-w-0 flex-col gap-0.5">
+            <span className="heading-6 text-on-dark">Academy Desk</span>
+            {user && <span className="caption-4 truncate text-on-dark/70">{user.academy.name}</span>}
+          </span>
         </Link>
         <nav aria-label="Main" className="flex-1 px-3">
           <ul className="flex flex-col gap-1">{navLinks(false)}</ul>
@@ -135,8 +139,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Phones: top bar and a full height menu */}
       <header className="sticky top-0 z-40 flex items-center justify-between border-b border-on-dark/10 bg-dark-deep px-4 py-2 md:hidden">
-        <Link href={items[0]?.href ?? "/"} className="heading-6 text-on-dark">
-          {user?.academy.name ?? "Academy Desk"}
+        <Link href={items[0]?.href ?? "/"} className="flex min-w-0 items-center gap-2 heading-6 text-on-dark">
+          <BrandMark size={40} />
+          <span className="truncate">{user?.academy.name ?? "Academy Desk"}</span>
         </Link>
         <button
           type="button"

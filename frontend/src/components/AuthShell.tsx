@@ -1,4 +1,5 @@
 import { CalendarCheck, Medal, ShieldCheck } from "@phosphor-icons/react";
+import { BrandMark } from "@/components/BrandMark";
 
 const FEATURES = [
   { icon: CalendarCheck, label: "Attendance" },
@@ -14,7 +15,10 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="grid min-h-dvh lg:grid-cols-[1.15fr_1fr]">
       <aside className="hidden flex-col justify-between bg-dark-deep px-12 py-12 text-on-dark lg:flex xl:px-20">
-        <p className="heading-6 text-on-dark">Academy Desk</p>
+        <p className="flex items-center gap-3 heading-6 text-on-dark">
+          <BrandMark size={60} />
+          Academy Desk
+        </p>
 
         <div className="flex max-w-[560px] flex-col gap-6">
           <p className="heading-2 text-on-dark">Every session, match and trial in one desk</p>
@@ -37,7 +41,10 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <main id="main" className="flex flex-col items-center justify-center gap-6 bg-canvas px-4 py-12 sm:px-8">
-        <p className="heading-6 text-ink lg:hidden">Academy Desk</p>
+        <p className="flex items-center gap-2 heading-6 text-ink lg:hidden">
+          <BrandMark size={48} />
+          Academy Desk
+        </p>
         {children}
       </main>
     </div>

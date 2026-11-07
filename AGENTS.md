@@ -337,8 +337,10 @@ All under `/api`. JSON in, JSON out. Errors always use the `ApiError` shape. Aut
 | POST | `/api/matches` | coach | `{ date, sport, opponent, scores: [{ playerId, stats: { [key]: number } }] }` | 201 `{ match }`. **422** `{ error, details: { refused: [...] } }` if any player was not present that day. Nothing is saved if anyone is refused |
 
 ### Health
-| GET | `/api/health` | anyone | – | 200 `{ ok: true }` (used to check the deploy) |
+| Method | Path | Who | Body | Success |
 |---|---|---|---|---|
+| GET | `/api/health` | anyone | – | 200 `{ ok: true }` (used to check the deploy) |
+| GET | `/api/health/db` | anyone | – | 200 `{ ok: true, db: "up" }` if MongoDB answers a ping, else 503 `ApiError` |
 
 ---
 
@@ -487,6 +489,7 @@ How each check is shown:
 - Theme: the navy blue football club look from the reference design wins over the generic dark colours in the skill (the user asked for it). The skill's type, spacing, motion and state rules still apply.
 - Deslop pass (`deslop-ui` skill): flat navy surfaces, one solid blue accent, colour only for real states (green present, red absent, amber ready). No gradients, glows, blurred blobs, dot grids, pulsing dots, all caps labels or glass cards. Blur is kept only on the floating nav bar. Radius scale: `rounded-lg` controls, `rounded-xl` panels, `rounded-md` tags, circles only for round things. Every number on a profile must come from the API: no invented jersey numbers, honours or decorative charts. Copy is sentence case, plain words, no exclamation marks.
 - Photos: the browser shrinks the picture first (longest side 1200px, JPEG), then uploads it. With mocks on, the picture is kept in the browser instead of Cloudinary. Cards use `object-fit: cover` and show a silhouette when a player has no photo.
+- App icons live in `frontend/public/` (`favicon.ico`, `favicon-16x16.png`, `favicon-32x32.png`, `apple-touch-icon.png` 180px, `android-chrome-192x192.png`, `android-chrome-512x512.png`, `site.webmanifest`) and are linked from `metadata.icons` in `src/app/layout.tsx`. The old `src/app/icon.svg` was removed so it does not override them. The same shield logo is shown in the app by `BrandMark` (`components/BrandMark.tsx`), from `public/brand-mark.png`, a transparent cut of the icon (the icon files have a white background that shows as a white box on dark surfaces): sidebar, phone top bar, sign-in panel and its phone header, and the 404 page.
 - On the real backend the match form lists everyone of the sport, and disables players who were not present that day (the server still refuses them with 422 if one gets through).
 
 ## 12. Open questions

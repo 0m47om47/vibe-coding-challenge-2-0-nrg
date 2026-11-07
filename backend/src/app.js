@@ -22,6 +22,17 @@ app.use(cookieParser());
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
+// Same as /api/health, but also checks that MongoDB answers. 503 if it does not.
+app.get("/api/health/db", async (_req, res) => {
+  try {
+    await connectDB();
+    await mongoose.connection.db.admin().ping();
+    res.json({ ok: true, db: "up" });
+  } catch {
+    res.status(503).json({ error: "The database is not reachable." });
+  }
+});
+
 app.use("/api", async (_req, _res, next) => {
   await connectDB();
   next();
