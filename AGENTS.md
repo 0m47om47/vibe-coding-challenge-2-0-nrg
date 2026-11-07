@@ -407,7 +407,7 @@ frontend/
 - [x] B13. Seven sports with per-sport stat lines on matches (`stats`), `SPORT_STATS`, 16-player seed.
 - [x] B14. Scout access: `email` and `status` on `User`, `POST /api/auth/register-scout`, login by email with the pending 403, `/api/users/scouts` routes, scouts re-checked against the database on every request. Seed adds a pending scout `new.scout@example.com` / `scout123`.
 - [x] B15. Academies: `Academy` model, `academyId` on users, players, sessions and matches (session uniqueness is per academy), every route scoped to the signed-in academy, `register-academy`, `/api/academies`, `/api/academy`, coach accounts, scout sign-up per academy, account and academy re-read on every request. Seed adds Ranchi Hockey Academy; `npm run migrate:academies` links data from before academies to Dumka Sports Academy without deleting anything.
-- [ ] B10. Deploy `backend/` to Vercel, set env vars, run seed against Atlas, give `BACKEND_URL` to the teammate.
+- [x] B10. Deploy `backend/` to Vercel, set env vars, run seed against Atlas, give `BACKEND_URL` to the teammate.
 
 ## 8. Frontend task list (teammate)
 
@@ -438,17 +438,20 @@ Independent from day one: work with `NEXT_PUBLIC_USE_MOCKS=true` until the backe
 - [x] F18. Scout access. Public `/register` (email, password, confirm; says the coach must approve). Login box is "Username or email" with a link to `/register`. Coach: Profiles is now the last sidebar item and holds a "Scout access" section (create a scout, approve or reject pending requests, remove an active scout with a confirm step) above the add-player form. Mocks follow the same rules (demo storage key `academy-mock-db-v3`).
 - [x] F19. Ready board: 3 KPI tiles, then the players. The attendance-by-session-day chart and the Needs attention panel were removed. Wherever there is a Table / Photo cards choice (`PlayersView`: Ready board, Players, scout page) the table is the default.
 - [x] F22. Sign-in screen in two halves: a dark Academy Desk panel (headline, one line on what it does, three features) on the left, the card on the right with **Sign in** and **Sign up** tabs on top (`components/AuthShell.tsx`, `components/AuthTabs.tsx`). `/login` opens Sign in, `/register-academy` opens Sign up, and switching tabs changes the address. Password fields have a show/hide button. The scout sign-up page (`/register`) uses the same frame. On phones the panel shrinks to the product name above the card. No remember-me or forgot-password, since the app has no password recovery.
+- [x] F24. Responsive pass. Checked every page at 360, 390, 768, 1024 and 1440px for sideways scrolling and anything sticking out. The sidebar (shown from 768px) takes 240px, so the player table now appears from 1024px (`lg`), with stacked cards below that; the table also scrolls inside its box rather than the page. The sport bar wraps onto more lines instead of scrolling. A profile's match rows stack the opponent over the numbers on phones. Rule for new layouts: pick breakpoints by the space left beside the sidebar, not the screen width.
 - [x] F23. "Try it in one click" on the Sign in tab, in every mode including the deployment: Coach (`coach / coach123`), Player (`dev / dev123`, Cricket) and Scout (`scout / scout123`) of Dumka Sports Academy. These accounts are public, so remove the section (QUICK_ACCOUNTS in `components/AuthTabs.tsx`) before real use.
 - [x] F21. Academies: `/register-academy` (name, town, sports, coach login), "Register your academy" on the sign-in page, academy picker on scout sign-up, the academy's name in the sidebar, Academy settings for coaches (`/coach/academy`), a Coaches choice in Profiles (`components/CoachManager.tsx`), and every sport menu shows only the academy's sports. Mocks follow the same rules (demo storage key `academy-mock-db-v5`).
 - [x] F20. Profile management made compact: a Players / Scouts choice first (Scouts shows how many requests are waiting), then only that group's options (`components/PlayerManager.tsx`, `components/ScoutAccess.tsx`). Both "add" forms stay closed until their button is pressed, and the player list has a name filter.
 - [x] F17. Coach sidebar: new "Profiles" section (`/coach/profiles`) for profile management. Creating players moved out of Players, which is now a view. Edit links open the profile with the editor already open.
-- [ ] F9. Deploy `frontend/` to Vercel with `BACKEND_URL` set. This is the live URL we submit.
+- [x] F9. Deploy `frontend/` to Vercel with `BACKEND_URL` set. This is the live URL we submit: https://vibe-coding-challenge-2-0-nrg.vercel.app/
 
 ---
 
 ## 9. Seed data and the checks
 
 `npm run seed` (in `backend/`) wipes the database and loads this. `npm run seed:empty` loads only the coach and scout accounts, so we can do the checks live from scratch.
+
+`npm run seed:missing` wipes nothing and adds each demo academy only if no academy of that name exists. The live database (Atlas) holds this full demo data, loaded that way, so every account below also works on https://vibe-coding-challenge-2-0-nrg.vercel.app/. Never run plain `npm run seed` against the live database: it deletes everything first.
 
 Academies: **Dumka Sports Academy** (Dumka, all 7 sports) holds everything below. **Ranchi Hockey Academy** (Ranchi, Football and Hockey) has coach `ranchi / ranchi123` and players `sahil / sahil123` and `tanvi / tanvi123`, and nothing else, to show that academies are kept apart.
 

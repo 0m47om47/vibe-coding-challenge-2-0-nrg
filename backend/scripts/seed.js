@@ -1,6 +1,8 @@
 // npm run seed        -> wipes the database, loads Dumka Sports Academy (coach, scout, 16 players in 7 sports with sessions
 //                        and matches) and a second, small academy (Ranchi Hockey Academy) to show the two are kept apart
 // npm run seed:empty  -> wipes the database, loads only Dumka Sports Academy with its coach and scout accounts
+// npm run seed:missing -> wipes nothing: adds each demo academy (with all its data) only if no academy of that name
+//                         exists yet. Safe on the live database: existing academies, accounts and records are untouched.
 // Data matches AGENTS.md §9.
 import "dotenv/config";
 import bcrypt from "bcryptjs";
@@ -12,14 +14,19 @@ import Player from "../src/models/Player.js";
 import Session from "../src/models/Session.js";
 import Match from "../src/models/Match.js";
 
-let seeded = "";
+const report = [];
 const emptyOnly = process.argv.includes("--empty");
+const addMissing = process.argv.includes("--add-missing");
 const hash = (pw) => bcrypt.hash(pw, 10);
 
 await connectDB();
-await Promise.all([Academy.deleteMany({}), User.deleteMany({}), Player.deleteMany({}), Session.deleteMany({}), Match.deleteMany({})]);
+if (!addMissing) {
+  await Promise.all([Academy.deleteMany({}), User.deleteMany({}), Player.deleteMany({}), Session.deleteMany({}), Match.deleteMany({})]);
+}
 await Promise.all([Academy.syncIndexes(), User.syncIndexes(), Session.syncIndexes()]); // unique indexes, and drop old ones
 
+const haveDumka = addMissing && (await Academy.exists({ nameKey: "dumka sports academy" }));
+if (!haveDumka) {
 const dumka = await Academy.create({ name: "Dumka Sports Academy", nameKey: "dumka sports academy", town: "Dumka", sports: SPORTS });
 const academyId = dumka._id;
 
@@ -146,6 +153,13 @@ if (!emptyOnly) {
       matchCount++;
     }
   }
+  report.push(`Dumka Sports Academy (${playerCount} players in 7 sports, ${sessionCount} sessions, ${matchCount} matches)`);
+}
+if (emptyOnly) report.push("Dumka Sports Academy with its coach and scout only");
+}
+
+const haveRanchi = addMissing && (await Academy.exists({ nameKey: "ranchi hockey academy" }));
+if (!emptyOnly && !haveRanchi) {
   // A second academy, so it is easy to see that coaches, scouts and players only ever see their own academy.
   const ranchi = await Academy.create({ name: "Ranchi Hockey Academy", nameKey: "ranchi hockey academy", town: "Ranchi", sports: ["Hockey", "Football"] });
   await User.create({ username: "ranchi", passwordHash: await hash("ranchi123"), role: "coach", academyId: ranchi._id });
@@ -155,8 +169,8 @@ if (!emptyOnly) {
     await User.create({ username, passwordHash: await hash(`${username}123`), role: "player", playerId: p._id, academyId: ranchi._id });
   }
 
-  seeded = `Seeded Dumka Sports Academy (${playerCount} players in 7 sports, ${sessionCount} sessions, ${matchCount} matches) and Ranchi Hockey Academy (2 players).`;
+  report.push("Ranchi Hockey Academy (a coach and 2 players)");
 }
 
-console.log(emptyOnly ? "Seeded Dumka Sports Academy with its coach and scout only." : seeded);
+console.log(report.length ? `Seeded ${report.join(" and ")}.` : "Nothing to add: the demo academies are already there.");
 await disconnectDB();

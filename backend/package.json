@@ -8,6 +8,7 @@
     "start": "node src/server.js",
     "seed": "node scripts/seed.js",
     "seed:empty": "node scripts/seed.js --empty",
+    "seed:missing": "node scripts/seed.js --add-missing",
     "test": "node --test",
     "migrate:academies": "node scripts/migrate-academies.js"
   },
