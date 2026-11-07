@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Calendar, IdentificationCard, Medal, SignOut, SoccerBall, Users, UserCircle } from "@phosphor-icons/react";
+import { Calendar, GearSix, IdentificationCard, Medal, SignOut, SoccerBall, Users, UserCircle } from "@phosphor-icons/react";
 import { useAuth } from "@/components/AuthProvider";
-import { GlobalSportSelect } from "@/components/SportFilter";
+import { SportBar } from "@/components/SportFilter";
 import { PlayerSearch } from "@/components/PlayerSearch";
 import { cx } from "@/components/ui";
 import { profileHref } from "@/lib/format";
@@ -31,6 +31,9 @@ const NAV: Record<Role, NavItem[]> = {
   scout: [{ href: "/scout", label: "Ready players", icon: <Medal {...icon} /> }],
   player: [{ href: "/me", label: "My profile", icon: <UserCircle {...icon} />, exact: true }],
 };
+
+// Pages whose lists follow the sport bar. Profiles, settings and single-record pages do not show it.
+const FILTERED_PAGES = new Set(["/coach", "/coach/players", "/coach/sessions", "/coach/matches", "/coach/profiles", "/scout"]);
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
@@ -80,6 +83,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </li>
     ));
 
+  // Coaches only: the academy's name, town and sports.
+  const settingsLink = (big: boolean) =>
+    user?.role === "coach" ? (
+      <Link
+        href="/coach/academy"
+        aria-current={pathname === "/coach/academy" ? "page" : undefined}
+        className={cx(
+          "motion-base flex items-center gap-3 rounded-lg",
+          big ? "px-4 py-4 title-2" : "px-3 py-2 button-sm",
+          pathname === "/coach/academy" ? "bg-on-dark/10 text-on-dark" : "text-on-dark/80 hover:bg-on-dark/10 hover:text-on-dark"
+        )}
+      >
+        <GearSix {...icon} />
+        Academy settings
+      </Link>
+    ) : null;
+
   const logoutButton = (big: boolean) => (
     <button
       type="button"
@@ -98,14 +118,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <>
       {/* Desktop: fixed left sidebar */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-on-dark/10 bg-dark-deep md:flex">
-        <Link href={items[0]?.href ?? "/"} className="px-6 py-6 heading-6 text-on-dark">
-          Dumka Desk
+        <Link href={items[0]?.href ?? "/"} className="flex flex-col gap-0.5 px-6 py-6">
+          <span className="heading-6 text-on-dark">Academy Desk</span>
+          {user && <span className="caption-4 truncate text-on-dark/70">{user.academy.name}</span>}
         </Link>
         <nav aria-label="Main" className="flex-1 px-3">
           <ul className="flex flex-col gap-1">{navLinks(false)}</ul>
         </nav>
         <div className="border-t border-on-dark/15 p-3">
-          <p className="caption-4 mb-2 truncate px-3 text-on-dark/70">Signed in as {who}</p>
+          {settingsLink(false)}
+          <p className="caption-4 mb-2 mt-2 truncate px-3 text-on-dark/70">Signed in as {who}</p>
           {logoutButton(false)}
         </div>
       </aside>
@@ -113,7 +135,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Phones: top bar and a full height menu */}
       <header className="sticky top-0 z-40 flex items-center justify-between border-b border-on-dark/10 bg-dark-deep px-4 py-2 md:hidden">
         <Link href={items[0]?.href ?? "/"} className="heading-6 text-on-dark">
-          Dumka Desk
+          {user?.academy.name ?? "Academy Desk"}
         </Link>
         <button
           type="button"
@@ -153,7 +175,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           className={cx("motion-slow motion-move mt-6", open ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0")}
           style={{ transitionDelay: open ? `${Math.min(items.length * 60, 400)}ms` : "0ms" }}
         >
-          <p className="caption-4 mb-2 px-4 text-on-dark/70">Signed in as {who}</p>
+          {settingsLink(true)}
+          <p className="caption-4 mb-2 mt-2 px-4 text-on-dark/70">Signed in as {who}</p>
           {logoutButton(true)}
         </div>
       </div>
@@ -161,13 +184,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="md:pl-60">
         <main id="main" className="mx-auto w-full max-w-6xl px-4 pb-16 pt-6 md:px-8 md:pt-8">
           {searchHref && (
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-0 flex-1 basis-72">
-                <PlayerSearch hrefFor={searchHref} />
-              </div>
-              <GlobalSportSelect />
+            <div className="mb-4 max-w-xl">
+              <PlayerSearch hrefFor={searchHref} />
             </div>
           )}
+          {FILTERED_PAGES.has(pathname) && <SportBar />}
           {children}
         </main>
       </div>

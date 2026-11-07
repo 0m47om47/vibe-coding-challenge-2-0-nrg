@@ -6,6 +6,8 @@ const userSchema = new mongoose.Schema(
     username: { type: String, required: true, unique: true, lowercase: true, trim: true },
     passwordHash: { type: String, required: true },
     role: { type: String, enum: ROLES, required: true },
+    // The academy this account belongs to (coaches, scouts and players alike)
+    academyId: { type: mongoose.Schema.Types.ObjectId, ref: "Academy", required: true, index: true },
     // Scouts sign in with their email. Left out for players and the coach.
     email: { type: String, lowercase: true, trim: true, unique: true, sparse: true },
     // "pending" scouts cannot sign in until the coach approves them.

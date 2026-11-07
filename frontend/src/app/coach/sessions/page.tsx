@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CalendarPlus, CaretRight } from "@phosphor-icons/react";
+import { useAuth } from "@/components/AuthProvider";
 import { useSportFilter } from "@/components/SportFilter";
 import { SportSelect } from "@/components/SportSelect";
 import { Button, Card, EmptyState, ErrorNote, Field, ListSkeleton, PageHeader, StatusBadge, inputClass } from "@/components/ui";
@@ -16,7 +17,8 @@ export default function SessionsPage() {
   const router = useRouter();
   const { data, error, loading, reload } = useLoad(() => api.sessions.list());
   const [date, setDate] = useState(todayISO());
-  const [sport, setSport] = useState<Sport>("Football");
+  const { user } = useAuth();
+  const [sport, setSport] = useState<Sport>(user?.academy.sports[0] ?? "Football");
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const { sport: filter } = useSportFilter();

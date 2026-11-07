@@ -7,6 +7,7 @@ import { requireAuth, requireRole } from "../middleware/auth.js";
 import { HttpError } from "../utils/httpError.js";
 import { matchJSON, playerJSON } from "../utils/toJSON.js";
 import { marksFromSessions, refusedPlayers } from "../services/matchRules.js";
+import { assertAcademySport } from "../utils/academy.js";
 import {
   assertBody,
   assertDate,
@@ -32,8 +33,8 @@ function statsFor(sport, raw) {
 const router = Router();
 router.use(requireAuth, requireRole("coach"));
 
-router.get("/", async (_req, res) => {
-  const matches = await Match.find()
+router.get("/", async (req, res) => {
+  const matches = await Match.find({ academyId: req.user.academyId })
     .sort({ date: -1, createdAt: -1 })
     .populate("scores.player", "name");
   res.json({ matches: matches.map(matchJSON) });
@@ -44,18 +45,18 @@ router.get("/eligible", async (req, res) => {
   const date = assertDate(req.query.date);
   const sport = assertSport(req.query.sport);
 
-  const sessions = await Session.find({ date, sport }).lean();
+  const sessions = await Session.find({ academyId: req.user.academyId, date, sport }).lean();
   const marks = marksFromSessions(sessions);
   const presentIds = [...marks].filter(([, m]) => m === "present").map(([id]) => id);
 
-  const players = await Player.find({ _id: { $in: presentIds }, sport }).sort({ name: 1 });
+  const players = await Player.find({ academyId: req.user.academyId, _id: { $in: presentIds }, sport }).sort({ name: 1 });
   res.json({ players: players.map(playerJSON) });
 });
 
 router.post("/", async (req, res) => {
   const body = assertBody(req);
   const date = assertDate(body.date);
-  const sport = assertSport(body.sport);
+  const sport = assertAcademySport(req, body.sport);
   const opponent = assertString(body.opponent, "opponent");
 
   if (!Array.isArray(body.scores) || body.scores.length === 0) {
@@ -71,8 +72,8 @@ router.post("/", async (req, res) => {
   }
 
   const [players, sessions] = await Promise.all([
-    Player.find({ _id: { $in: ids } }).lean(),
-    Session.find({ date, sport }).lean(),
+    Player.find({ academyId: req.user.academyId, _id: { $in: ids } }).lean(),
+    Session.find({ academyId: req.user.academyId, date, sport }).lean(),
   ]);
   const refused = refusedPlayers({
     date,
@@ -90,6 +91,7 @@ router.post("/", async (req, res) => {
   }
 
   const match = await Match.create({
+    academyId: req.user.academyId,
     date,
     sport,
     opponent,

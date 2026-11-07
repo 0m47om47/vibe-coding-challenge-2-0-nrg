@@ -8,7 +8,8 @@
     "start": "node src/server.js",
     "seed": "node scripts/seed.js",
     "seed:empty": "node scripts/seed.js --empty",
-    "test": "node --test"
+    "test": "node --test",
+    "migrate:academies": "node scripts/migrate-academies.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
