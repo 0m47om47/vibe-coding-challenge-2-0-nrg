@@ -24,6 +24,17 @@ export default function NewMatchPage() {
   useEffect(() => {
     if (filter) setSport(filter);
   }, [filter]);
+  // Opened from a closed session ("Record the match for this session"): start on that session's date and sport.
+  // Runs after the effect above, so the session's sport wins over the sport bar.
+  const [fromSession, setFromSession] = useState(false);
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const d = q.get("date");
+    const s = q.get("sport") as Sport | null;
+    if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) setDate(d);
+    if (s && user?.academy.sports.includes(s)) setSport(s);
+    if (d || s) setFromSession(true);
+  }, [user]);
   const [opponent, setOpponent] = useState("");
   const [played, setPlayed] = useState<Record<string, boolean>>({});
   const [scores, setScores] = useState<Record<string, Record<string, string>>>({}); // playerId -> stat key -> typed value
@@ -88,7 +99,11 @@ export default function NewMatchPage() {
       </Link>
       <PageHeader
         title="Record a match"
-        subtitle="Only players marked present in a session of that sport on that date can go on the score sheet."
+        subtitle={
+          fromSession
+            ? `For the ${sport} session on ${formatDate(date)}. Only the players marked present that day can go on the score sheet.`
+            : "Only players marked present in a session of that sport on that date can go on the score sheet."
+        }
       />
 
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">

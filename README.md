@@ -28,7 +28,7 @@ Built for Vibe Coding Challenge 2.0 by team **NRG**. The brief asked for a desk 
 **Coach**
 - Adds players (name, age, sport) together with each player's login
 - Runs practice sessions: **Open**, mark each player **Present** or **Absent**, then **Close**. A closed session is locked
-- Records matches (date, sport, opponent) with each player's numbers for that sport, such as runs and wickets for cricket. Only players marked present that day can go on the sheet
+- Records matches (date, sport, opponent) with each player's numbers for that sport, such as runs and wickets for cricket. Only players marked present that day can go on the sheet. A closed session has a button that opens the match form already set to that session's date and sport
 - Sees the **Ready board**: attendance, matches played and Ready status for every player
 - Manages players, scouts and other coaches in **Profiles**, and the academy's name, town and sports in **Academy settings**
 
@@ -243,6 +243,4 @@ AGENTS.md               rules, contract, API, task list and seed data
 - **No deleting players** yet, and a player's name, age and sport cannot be edited after creation.
 - The public academy list shows names and towns only, so scouts can choose one.
 
-## Team
-
-Team **NRG**: backend by Suraj, frontend by a teammate. How we split the work and the rules we followed are in [`AGENTS.md`](AGENTS.md).
+[`AGENTS.md`](AGENTS.md).

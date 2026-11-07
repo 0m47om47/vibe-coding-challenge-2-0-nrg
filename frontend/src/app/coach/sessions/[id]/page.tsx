@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { ArrowLeft, Check, Lock, UserPlus, X } from "@phosphor-icons/react";
+import { ArrowLeft, Check, Lock, Trophy, UserPlus, X } from "@phosphor-icons/react";
 import { Button, Card, EmptyState, ErrorNote, LinkButton, ListSkeleton, MarkBadge, PageHeader, StatusBadge, cx } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import { formatDate } from "@/lib/format";
@@ -20,6 +20,7 @@ export default function SessionPage() {
 
   const session: PracticeSession | null = data;
   const locked = session?.status === "closed";
+  const presentCount = session?.attendance.filter((a) => a.mark === "present").length ?? 0;
   const unmarked = session ? session.attendance.filter((a) => !a.mark) : [];
 
   async function mark(marks: { playerId: string; mark: Mark }[], busyKey: string) {
@@ -75,9 +76,26 @@ export default function SessionPage() {
           />
 
           {locked && (
-            <div className="mb-4 flex items-center gap-2 rounded-lg border border-line bg-canvas px-3 py-2 text-ink-2">
-              <Lock size={18} aria-hidden className="shrink-0" />
-              <p className="body-5">This session is closed. Marks are final and count toward readiness.</p>
+            <div className="mb-4 flex flex-col gap-3 rounded-xl border border-line bg-surface p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-2 text-ink-2">
+                <Lock size={18} aria-hidden className="mt-0.5 shrink-0" />
+                <p className="body-5">
+                  This session is closed. Marks are final and count toward readiness.
+                  {presentCount > 0
+                    ? ` ${presentCount} ${presentCount === 1 ? "player was" : "players were"} present and can go on the match sheet.`
+                    : " No one was present, so there is no one to put on a match sheet."}
+                </p>
+              </div>
+              {presentCount > 0 && (
+                <LinkButton
+                  href={`/coach/matches/new?date=${session.date}&sport=${encodeURIComponent(session.sport)}`}
+                  variant="action"
+                  className="shrink-0"
+                >
+                  <Trophy size={18} aria-hidden />
+                  Record the match for this session
+                </LinkButton>
+              )}
             </div>
           )}
           {actionError && (
