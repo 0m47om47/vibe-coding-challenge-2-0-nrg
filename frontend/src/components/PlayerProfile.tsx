@@ -3,7 +3,7 @@
 import { RadarChart } from "@/components/RadarChart";
 import { radarAxes, rating, streaks, type Axis } from "@/lib/rating";
 import { MatchStatsChart } from "@/components/MatchStatsChart";
-import { SPORT_STATS, totalStats } from "@/lib/sportStats";
+import { SPORT_STATS, statText, totalStats } from "@/lib/sportStats";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowLeft, CheckCircle, Circle, PencilSimple } from "@phosphor-icons/react";
@@ -11,7 +11,7 @@ import { AttendanceTrend } from "@/components/AttendanceTrend";
 import { useAuth } from "@/components/AuthProvider";
 import { PlayerPhoto } from "@/components/PlayerAvatar";
 import { ProfileEditor } from "@/components/ProfileEditor";
-import { Button, Card, EmptyState, ErrorNote, ListSkeleton, MarkBadge, ReadyBadge } from "@/components/ui";
+import { Button, Card, EmptyState, ErrorNote, ListSkeleton, MarkBadge, ReadyBadge, SportTag } from "@/components/ui";
 import { api } from "@/lib/api";
 import { canEditProfile, formatDate, pctLabel, readyGaps } from "@/lib/format";
 import { useLoad } from "@/lib/useLoad";
@@ -76,7 +76,6 @@ export function PlayerProfile({ playerId, back }: { playerId: string; back?: { h
           <Panel title="Attendance">
             <DetailList
               rows={[
-                ["Attendance", pctLabel(player.attendancePct)],
                 ["Sessions held", String(player.sessionsHeld)],
                 ["Present", String(player.sessionsPresent)],
                 ["Absent", String(player.sessionsHeld - player.sessionsPresent)],
@@ -88,11 +87,9 @@ export function PlayerProfile({ playerId, back }: { playerId: string; back?: { h
           <Panel title={player.sport}>
             <DetailList
               rows={[
-                ["Matches played", String(player.matchesPlayed)],
-                ...totalStats(player.sport, history.matches.map((m) => m.stats)).flatMap(({ field, total, average }) => {
+                ...totalStats(player.sport, history.matches.map((m) => m.stats)).flatMap(({ field, average }) => {
                   const best = Math.max(0, ...history.matches.map((m) => m.stats[field.key] ?? 0));
                   return [
-                    [`${field.label}, total`, String(total)],
                     [`${field.label}, per match`, String(average)],
                     [`${field.label}, best match`, String(best)],
                   ] as [string, string][];
@@ -130,7 +127,7 @@ export function PlayerProfile({ playerId, back }: { playerId: string; back?: { h
                       <p className="caption-5 text-muted">{formatDate(m.date)}</p>
                     </div>
                     <p className="shrink-0 text-right body-5 text-ink">
-                      {SPORT_STATS[player.sport].map((f) => `${m.stats[f.key] ?? 0} ${f.label.toLowerCase()}`).join(", ")}
+                      {SPORT_STATS[player.sport].map((f) => statText(f, m.stats[f.key] ?? 0)).join(", ")}
                     </p>
                   </li>
                 ))}
@@ -183,9 +180,9 @@ function ProfileHeader({
           <PlayerPhoto player={player} width={160} height={160} priority />
         </div>
         <div className="min-w-0">
-          <h1 className="heading-5 sm:heading-4 break-words italic text-on-dark">{player.name}</h1>
+          <h1 className="heading-5 sm:heading-4 break-words text-on-dark">{player.name}</h1>
           <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 body-5 text-on-dark/80">
-            <span>{player.sport}</span>
+            <SportTag sport={player.sport} onDark />
             {player.nationality && <span>{player.nationality}</span>}
             <ReadyBadge ready={player.ready} />
           </p>
@@ -197,7 +194,7 @@ function ProfileHeader({
           {body.map(([label, value, unit]) => (
             <div key={label} className="flex flex-col-reverse text-center">
               <dt className="caption-4 text-on-dark/70">{label}</dt>
-              <dd className="heading-5 italic text-on-dark">
+              <dd className="heading-5 font-mono text-on-dark">
                 {value}
                 {unit && <span className="body-5 ml-1 text-on-dark/70">{unit}</span>}
               </dd>
@@ -223,12 +220,12 @@ function StatsStrip({ player, history, axes }: { player: PlayerStats; history: P
     ...totalStats(player.sport, history.matches.map((m) => m.stats)).map(({ field, total }): [string, string] => [field.label, String(total)]),
   ];
   return (
-    <Card className="p-4 sm:p-6">
+    <Card className="!border-dark !bg-dark p-4 sm:p-6">
       <dl className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-[repeat(auto-fit,minmax(120px,1fr))]">
         {tiles.map(([label, value], i) => (
           <div key={label} className="flex flex-col-reverse">
-            <dt className="caption-4 text-muted">{label}</dt>
-            <dd className={i === 0 ? "heading-4 italic text-primary" : "heading-4 italic text-ink"}>{value}</dd>
+            <dt className="caption-4 text-on-dark/70">{label}</dt>
+            <dd className={i === 0 ? "heading-4 font-mono font-bold text-primary-soft" : "heading-4 font-mono font-bold text-on-dark"}>{value}</dd>
           </div>
         ))}
       </dl>
@@ -242,7 +239,7 @@ function DetailList({ rows }: { rows: [string, string][] }) {
       {rows.map(([label, value]) => (
         <div key={label} className="flex items-baseline justify-between gap-3 border-t border-line py-2 first:border-t-0 first:pt-0">
           <dt className="body-5 text-ink-2">{label}</dt>
-          <dd className="body-4 text-ink">{value}</dd>
+          <dd className="body-4 font-mono text-ink">{value}</dd>
         </div>
       ))}
     </dl>

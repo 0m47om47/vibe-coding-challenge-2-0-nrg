@@ -1,9 +1,9 @@
 import type { Axis } from "@/lib/rating";
 
-const FILL = "#4758d6"; // series blue, validated against the card surface (dataviz)
-const GRID = "#e2e1e1";
-const INK = "#201c1c";
-const MUTED = "#5f5a5a";
+const FILL = "#4F46E5"; // indigo data accent from DESIGN.md
+const GRID = "#E2E8F0";
+const INK = "#1E293B";
+const MUTED = "#64748B";
 const SURFACE = "#FFFFFF";
 const SIZE = 300;
 const C = SIZE / 2;

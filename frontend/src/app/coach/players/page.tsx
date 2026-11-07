@@ -33,7 +33,7 @@ export default function PlayersPage() {
           action={<LinkButton href="/coach/profiles">Manage profiles</LinkButton>}
         />
       ) : (
-        <PlayersView players={players} defaultView="table" />
+        <PlayersView players={players} />
       )}
     </>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { SPORT_STATS } from "@/lib/sportStats";
+import { SPORT_STATS, statText } from "@/lib/sportStats";
 import { Plus, SoccerBall } from "@phosphor-icons/react";
 import { EmptyState, ErrorNote, LinkButton, ListSkeleton, PageHeader } from "@/components/ui";
 import { useSportFilter } from "@/components/SportFilter";
@@ -52,7 +52,7 @@ export default function MatchesPage() {
                   <div key={s.playerId} className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
                     <dt className="body-5 min-w-24 text-ink-2">{s.playerName}</dt>
                     <dd className="body-5 text-ink">
-                      {SPORT_STATS[m.sport].map((f) => `${s.stats[f.key] ?? 0} ${f.label.toLowerCase()}`).join(", ")}
+                      {SPORT_STATS[m.sport].map((f) => statText(f, s.stats[f.key] ?? 0)).join(", ")}
                     </dd>
                   </div>
                 ))}

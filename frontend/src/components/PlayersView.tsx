@@ -13,7 +13,7 @@ import type { PlayerStats } from "@/types";
 type View = "cards" | "table";
 
 /** A list of players as photo cards or as a table. Choosing a player opens their profile page. */
-export function PlayersView({ players, defaultView = "cards" }: { players: PlayerStats[]; defaultView?: View }) {
+export function PlayersView({ players, defaultView = "table" }: { players: PlayerStats[]; defaultView?: View }) {
   const router = useRouter();
   const { user } = useAuth();
   const [view, setView] = useState<View>(defaultView);

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
@@ -29,7 +30,7 @@ export default function LoginPage() {
 
   async function performLogin(u: string, p: string) {
     setError(null);
-    if (!u.trim()) return setError("Enter your username.");
+    if (!u.trim()) return setError("Enter your username or email.");
     if (!p) return setError("Enter your password.");
     setBusy(true);
     try {
@@ -58,7 +59,7 @@ export default function LoginPage() {
 
       <Card className="p-6">
         <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
-          <Field label="Username">
+          <Field label="Username or email" hint="Scouts sign in with their email">
             <input
               className={inputClass}
               value={username}
@@ -79,11 +80,18 @@ export default function LoginPage() {
             />
           </Field>
           {error && <ErrorNote>{error}</ErrorNote>}
-          <Button type="submit" busy={busy}>
+          <Button variant="action" type="submit" busy={busy}>
             {busy ? "Signing in" : "Sign in"}
           </Button>
         </form>
       </Card>
+
+      <p className="body-5 text-ink-2">
+        Are you a scout?{" "}
+        <Link href="/register" className="font-semibold text-link underline underline-offset-2 hover:text-ink">
+          Request access with your email
+        </Link>
+      </p>
 
       {DEMO && (
         <div className="flex flex-col gap-2">

@@ -24,9 +24,9 @@ const NAV: Record<Role, NavItem[]> = {
   coach: [
     { href: "/coach", label: "Ready board", icon: <Medal {...icon} />, exact: true },
     { href: "/coach/players", label: "Players", icon: <Users {...icon} /> },
-    { href: "/coach/profiles", label: "Profiles", icon: <IdentificationCard {...icon} /> },
     { href: "/coach/sessions", label: "Sessions", icon: <Calendar {...icon} /> },
     { href: "/coach/matches", label: "Matches", icon: <SoccerBall {...icon} /> },
+    { href: "/coach/profiles", label: "Profiles", icon: <IdentificationCard {...icon} /> },
   ],
   scout: [{ href: "/scout", label: "Ready players", icon: <Medal {...icon} /> }],
   player: [{ href: "/me", label: "My profile", icon: <UserCircle {...icon} />, exact: true }],
@@ -71,7 +71,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           className={cx(
             "motion-base flex items-center gap-3 rounded-lg",
             big ? "px-4 py-4 title-2" : "px-3 py-2 button-sm",
-            active(i) ? "bg-primary text-on-primary" : "text-on-dark/80 hover:bg-on-dark/10 hover:text-on-dark"
+            active(i) ? "bg-on-dark/10 text-on-dark" : "text-on-dark/80 hover:bg-on-dark/10 hover:text-on-dark"
           )}
         >
           {i.icon}
@@ -97,8 +97,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       {/* Desktop: fixed left sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col bg-dark md:flex">
-        <Link href={items[0]?.href ?? "/"} className="px-6 py-6 heading-6 italic text-on-dark">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-on-dark/10 bg-dark-deep md:flex">
+        <Link href={items[0]?.href ?? "/"} className="px-6 py-6 heading-6 text-on-dark">
           Dumka Desk
         </Link>
         <nav aria-label="Main" className="flex-1 px-3">
@@ -111,8 +111,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Phones: top bar and a full height menu */}
-      <header className="sticky top-0 z-40 flex items-center justify-between bg-dark px-4 py-2 md:hidden">
-        <Link href={items[0]?.href ?? "/"} className="heading-6 italic text-on-dark">
+      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-on-dark/10 bg-dark-deep px-4 py-2 md:hidden">
+        <Link href={items[0]?.href ?? "/"} className="heading-6 text-on-dark">
           Dumka Desk
         </Link>
         <button
@@ -142,7 +142,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         aria-hidden={!open}
         inert={!open}
         className={cx(
-          "motion-slow fixed inset-x-0 bottom-0 top-14 z-30 bg-dark px-4 pt-4 md:hidden",
+          "motion-slow fixed inset-x-0 bottom-0 top-14 z-30 bg-dark-deep px-4 pt-4 md:hidden",
           open ? "opacity-100" : "pointer-events-none opacity-0"
         )}
       >

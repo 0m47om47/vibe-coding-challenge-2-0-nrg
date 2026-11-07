@@ -55,7 +55,7 @@ export default function SessionsPage() {
           <Field label="Sport">
             <SportSelect value={sport} onChange={setSport} />
           </Field>
-          <Button type="submit" busy={busy}>
+          <Button variant="action" type="submit" busy={busy}>
             <CalendarPlus size={18} aria-hidden />
             {busy ? "Opening" : "Open session"}
           </Button>

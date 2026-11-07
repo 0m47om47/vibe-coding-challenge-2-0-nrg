@@ -23,6 +23,9 @@ await User.create([
 ]);
 
 if (!emptyOnly) {
+  // A scout who signed up by email and is waiting for the coach to approve (Profiles > Scout access).
+  await User.create({ username: "new.scout@example.com", email: "new.scout@example.com", passwordHash: await hash("scout123"), role: "scout", status: "pending" });
+
   // Same four practice days for every sport. P = present, A = absent.
   const DAYS = ["2026-10-25", "2026-10-27", "2026-10-29", "2026-11-01"];
   // Each match: [dayIndex, opponent, { player: stats }]. Only players present that day may be listed.

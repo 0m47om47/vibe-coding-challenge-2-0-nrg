@@ -18,6 +18,18 @@ export const SPORT_STATS: Record<Sport, StatField[]> = {
 
 export type StatLine = Record<string, number>;
 
+const SINGULAR: Record<string, string> = {
+  goals: "goal", assists: "assist", runs: "run", wickets: "wicket", catches: "catch",
+  "games won": "game won", "points won": "point won", points: "point", spikes: "spike",
+  blocks: "block", aces: "ace", "raid points": "raid point", "tackle points": "tackle point",
+};
+
+/** "1 goal", "2 goals". */
+export const statText = (f: StatField, n: number) => {
+  const label = f.label.toLowerCase();
+  return `${n} ${n === 1 ? (SINGULAR[label] ?? label) : label}`;
+};
+
 /** Sum each stat of the sport over the given match lines. */
 export function totalStats(sport: Sport, lines: StatLine[]): { field: StatField; total: number; average: number }[] {
   return SPORT_STATS[sport].map((field) => {

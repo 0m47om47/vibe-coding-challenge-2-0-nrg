@@ -4,13 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { formatDate, pctLabel } from "@/lib/format";
 import type { PlayerHistory } from "@/types";
 
-// Colours checked with the dataviz validator against the card surface (#FFFFFF): all checks pass.
-const LINE = "#4758d6";
-const THRESHOLD = "#ea3a3a";
+// Colours checked with the dataviz validator against the card surface (#1E1E1E): all checks pass.
+const LINE = "#4F46E5";
+const THRESHOLD = "#C2410C";
 const SURFACE = "#FFFFFF";
-const GRID = "#e2e1e1";
-const INK_MUTED = "#5f5a5a";
-const INK = "#201c1c";
+const GRID = "#E2E8F0";
+const INK_MUTED = "#64748B";
+const INK = "#1E293B";
 
 const H = 200;
 const PAD = { l: 40, r: 52, t: 12, b: 28 };

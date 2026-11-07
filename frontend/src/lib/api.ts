@@ -7,6 +7,7 @@ import type {
   PlayerProfileUpdate,
   PlayerStats,
   PracticeSession,
+  ScoutAccount,
   SessionUser,
   Sport,
 } from "@/types";
@@ -73,8 +74,16 @@ export const api = {
   auth: {
     login: (username: string, password: string) =>
       request<{ user: SessionUser }>("POST", "/auth/login", { username, password }),
+    registerScout: (email: string, password: string) =>
+      request<{ ok: true; message: string }>("POST", "/auth/register-scout", { email, password }),
     logout: () => request<{ ok: true }>("POST", "/auth/logout"),
     me: () => request<{ user: SessionUser }>("GET", "/auth/me"),
+  },
+  scouts: {
+    list: () => request<{ scouts: ScoutAccount[] }>("GET", "/users/scouts"),
+    create: (email: string, password: string) => request<{ scout: ScoutAccount }>("POST", "/users/scouts", { email, password }),
+    approve: (id: string) => request<{ scout: ScoutAccount }>("PATCH", `/users/scouts/${id}/approve`),
+    remove: (id: string) => request<{ ok: true }>("DELETE", `/users/scouts/${id}`),
   },
   players: {
     list: (sport?: Sport) => request<{ players: PlayerStats[] }>("GET", `/players${qs({ sport })}`),

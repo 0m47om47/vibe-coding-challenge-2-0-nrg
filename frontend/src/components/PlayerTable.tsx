@@ -2,7 +2,7 @@
 
 import { CaretRight } from "@phosphor-icons/react";
 import { PlayerAvatar } from "@/components/PlayerAvatar";
-import { ReadyBadge, cx } from "@/components/ui";
+import { ReadyBadge, SportTag, cx } from "@/components/ui";
 import { pctLabel } from "@/lib/format";
 import type { PlayerStats } from "@/types";
 
@@ -74,7 +74,7 @@ export function PlayerTable({ players, onSelect }: { players: PlayerStats[]; onS
                     </div>
                   </div>
                 </th>
-                <td className="px-4 py-3 body-5 text-ink-2">{p.sport}</td>
+                <td className="px-4 py-3"><SportTag sport={p.sport} /></td>
                 <td className="w-56 px-4 py-3">
                   <div className="mb-1 flex items-baseline justify-between gap-2">
                     <span className="body-4 text-ink">{pctLabel(p.attendancePct)}</span>

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CaretLeft, CaretRight } from "@phosphor-icons/react";
 import { PlayerPhoto } from "@/components/PlayerAvatar";
-import { Button, ReadyBadge, cx } from "@/components/ui";
+import { Button, ReadyBadge, SportTag, cx } from "@/components/ui";
 import { splitName } from "@/lib/format";
 import type { PlayerStats } from "@/types";
 
@@ -142,7 +142,7 @@ export function SquadCarousel({
           <p className="heading-3 md:heading-2 max-w-full break-words text-ink">{last}</p>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-2">
-          <span className="caption-4 text-ink-2">{current.sport}</span>
+          <SportTag sport={current.sport} />
           {current.nationality && <span className="caption-4 text-ink-2">{current.nationality}</span>}
           <ReadyBadge ready={current.ready} />
         </div>

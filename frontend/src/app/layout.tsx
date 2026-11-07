@@ -1,10 +1,15 @@
 import { SportFilterProvider } from "@/components/SportFilter";
 import type { Metadata, Viewport } from "next";
-import { Geist } from "next/font/google";
+import { Be_Vietnam_Pro } from "next/font/google";
 import { AuthProvider } from "@/components/AuthProvider";
 import "./globals.css";
 
-const geist = Geist({ subsets: ["latin"], variable: "--font-geist", display: "swap" });
+const beVietnam = Be_Vietnam_Pro({
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "600", "700", "900"],
+  variable: "--font-be-vietnam",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: { default: "Dumka Academy Desk", template: "%s · Dumka Academy Desk" },
@@ -13,11 +18,11 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#201c1c" };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#f7f7fd" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={geist.variable}>
+    <html lang="en" className={beVietnam.variable}>
       <body className="min-h-dvh bg-canvas text-ink antialiased selection:bg-primary selection:text-on-primary">
         <a
           href="#main"

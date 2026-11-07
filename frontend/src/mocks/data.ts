@@ -7,6 +7,9 @@ export interface MockUser {
   password: string;
   role: Role;
   playerId?: string;
+  email?: string; // scouts sign in with their email
+  status?: "active" | "pending"; // pending scouts wait for the coach
+  createdAt?: string;
 }
 
 export interface MockSession {
@@ -97,6 +100,8 @@ export function seedDb(): MockDb {
   const users: MockUser[] = [
     { id: "u1", username: "coach", password: "coach123", role: "coach" },
     { id: "u2", username: "scout", password: "scout123", role: "scout" },
+    // Signed up by email, waiting for the coach (Profiles > Scout access)
+    { id: "u3", username: "new.scout@example.com", email: "new.scout@example.com", password: "scout123", role: "scout", status: "pending", createdAt: "2026-11-05T09:00:00.000Z" },
   ];
   const sessions: MockSession[] = [];
   const matches: MockMatch[] = [];

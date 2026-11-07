@@ -10,7 +10,7 @@ export interface MockResponse {
   body: unknown;
 }
 
-const DB_KEY = "academy-mock-db-v2";
+const DB_KEY = "academy-mock-db-v3";
 const USER_KEY = "academy-mock-user";
 
 const ok = (body: unknown, status = 200): MockResponse => ({ status, body });
@@ -48,7 +48,9 @@ const nextId = (db: MockDb, prefix: string) => `${prefix}${++db.seq}`;
 function currentUser(db: MockDb): MockUser | null {
   try {
     const id = localStorage.getItem(USER_KEY);
-    return db.users.find((u) => u.id === id) ?? null;
+    const u = db.users.find((x) => x.id === id) ?? null;
+    // Same as the backend: a scout the coach has not approved has no session.
+    return u && u.role === "scout" && u.status === "pending" ? null : u;
   } catch {
     return null;
   }
@@ -121,10 +123,23 @@ export async function mockRequest(method: string, path: string, body?: unknown):
   // ---- auth
   if (method === "POST" && pathname === "/auth/login") {
     const username = String(b.username ?? "").trim().toLowerCase();
-    const user = db.users.find((u) => u.username === username && u.password === b.password);
+    const user = db.users.find((u) => (u.username === username || u.email === username) && u.password === b.password);
     if (!user) return fail(401, "Wrong username or password.");
+    if (user.status === "pending") {
+      return fail(403, "Your request is waiting for the coach to approve it. Try again after they do.");
+    }
     localStorage.setItem(USER_KEY, user.id);
     return ok({ user: sessionUser(user) });
+  }
+  if (method === "POST" && pathname === "/auth/register-scout") {
+    const email = String(b.email ?? "").trim().toLowerCase();
+    const password = String(b.password ?? "");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) || email.length > 120) return fail(400, "email must be a valid email address.");
+    if (password.length < 6 || password.length > 100) return fail(400, "password must be 6-100 characters.");
+    if (db.users.some((u) => u.email === email || u.username === email)) return fail(409, "An account with this email already exists.");
+    db.users.push({ id: nextId(db, "u"), username: email, email, password, role: "scout", status: "pending", createdAt: new Date().toISOString() });
+    saveDb(db);
+    return ok({ ok: true, message: "Request sent. The coach has to approve it before you can sign in." }, 201);
   }
   if (method === "POST" && pathname === "/auth/logout") {
     localStorage.removeItem(USER_KEY);
@@ -132,6 +147,43 @@ export async function mockRequest(method: string, path: string, body?: unknown):
   }
   if (!me) return notLoggedIn();
   if (method === "GET" && pathname === "/auth/me") return ok({ user: sessionUser(me) });
+
+  // ---- scout accounts (coach only)
+  if (seg[0] === "users" && seg[1] === "scouts") {
+    if (me.role !== "coach") return forbidden();
+    const out = (u: MockUser) => ({ id: u.id, email: u.email ?? u.username, status: u.status ?? "active", createdAt: u.createdAt ?? "2026-10-01T00:00:00.000Z" });
+    const scoutOf = (id: string | undefined) => db.users.find((u) => u.id === id && u.role === "scout");
+    if (method === "GET" && seg.length === 2) {
+      const all = db.users.filter((u) => u.role === "scout").sort((a, c) => (c.createdAt ?? "").localeCompare(a.createdAt ?? ""));
+      const list = [...all.filter((u) => u.status === "pending"), ...all.filter((u) => u.status !== "pending")];
+      return ok({ scouts: list.map(out) });
+    }
+    if (method === "POST" && seg.length === 2) {
+      const email = String(b.email ?? "").trim().toLowerCase();
+      const password = String(b.password ?? "");
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) || email.length > 120) return fail(400, "email must be a valid email address.");
+      if (password.length < 6 || password.length > 100) return fail(400, "password must be 6-100 characters.");
+      if (db.users.some((u) => u.email === email || u.username === email)) return fail(409, "An account with this email already exists.");
+      const u: MockUser = { id: nextId(db, "u"), username: email, email, password, role: "scout", status: "active", createdAt: new Date().toISOString() };
+      db.users.push(u);
+      saveDb(db);
+      return ok({ scout: out(u) }, 201);
+    }
+    if (method === "PATCH" && seg.length === 4 && seg[3] === "approve") {
+      const u = scoutOf(seg[2]);
+      if (!u) return fail(404, "Scout not found.");
+      u.status = "active";
+      saveDb(db);
+      return ok({ scout: out(u) });
+    }
+    if (method === "DELETE" && seg.length === 3) {
+      const u = scoutOf(seg[2]);
+      if (!u) return fail(404, "Scout not found.");
+      db.users = db.users.filter((x) => x.id !== u.id);
+      saveDb(db);
+      return ok({ ok: true });
+    }
+  }
 
   // ---- players
   if (seg[0] === "players") {

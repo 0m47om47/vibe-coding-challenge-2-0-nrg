@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import User from "../models/User.js";
 import { HttpError } from "../utils/httpError.js";
 
 export const COOKIE_NAME = "token";
@@ -34,7 +35,7 @@ export function clearAuthCookie(res) {
 }
 
 // Sets req.user = SessionUser (AGENTS.md §4) or throws 401.
-export function requireAuth(req, _res, next) {
+export async function requireAuth(req, _res, next) {
   const token = req.cookies?.[COOKIE_NAME];
   if (!token) throw new HttpError(401, "Please log in.");
   let payload;
@@ -42,6 +43,11 @@ export function requireAuth(req, _res, next) {
     payload = jwt.verify(token, secret());
   } catch {
     throw new HttpError(401, "Your login has expired. Please log in again.");
+  }
+  if (payload.role === "scout") {
+    // The coach can remove a scout at any time, so the cookie alone is not enough for this role.
+    const account = await User.findById(payload.sub).select("status");
+    if (!account || account.status !== "active") throw new HttpError(401, "Your scout access is no longer active.");
   }
   req.user = {
     id: payload.sub,

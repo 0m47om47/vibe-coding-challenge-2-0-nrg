@@ -200,7 +200,7 @@ export default function NewMatchPage() {
         )}
 
         <div className="flex gap-2">
-          <Button type="submit" busy={busy} disabled={loading || presentIds.size === 0}>
+          <Button variant="action" type="submit" busy={busy} disabled={loading || presentIds.size === 0}>
             {busy ? "Saving" : "Save match"}
           </Button>
           <LinkButton href="/coach/matches" variant="ghost">

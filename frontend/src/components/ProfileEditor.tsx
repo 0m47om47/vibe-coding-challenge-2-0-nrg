@@ -81,7 +81,7 @@ export function ProfileEditor({
       )}
 
       <div className="mt-6 flex flex-wrap gap-2">
-        <Button type="submit" busy={busy}>
+        <Button variant="action" type="submit" busy={busy}>
           <FloppyDisk size={18} aria-hidden />
           {busy ? "Saving" : "Save profile"}
         </Button>

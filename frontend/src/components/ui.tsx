@@ -4,20 +4,22 @@ import { CheckCircle, Lock, LockOpen, Warning, XCircle, Trophy } from "@phosphor
 export const cx = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(" ");
 
 /*
-  Radius scale: controls rounded-lg, panels rounded-xl, small tags rounded-md.
+  Radius scale: controls 12px, cards 16px, tags 6px. Circles only for round things.
   Circles are only for round things (the attendance badge and the gauges).
 */
 
 /* ---------- Buttons ---------- */
-type Variant = "primary" | "secondary" | "ghost" | "danger";
+type Variant = "primary" | "action" | "secondary" | "ghost" | "danger";
 type Size = "md" | "sm";
 
 export function buttonClass(variant: Variant = "primary", size: Size = "md", extra?: string) {
   const base =
-    "motion-base inline-flex cursor-pointer select-none items-center justify-center gap-2 rounded-lg px-4 py-2 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40";
+    "motion-base inline-flex cursor-pointer select-none items-center justify-center gap-2 rounded-xl px-4 py-2 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40";
   const text = size === "md" ? "button-md" : "button-sm";
   const tone = {
     primary: "bg-primary text-on-primary hover:bg-primary-hover",
+    // The main action of a form. Same indigo as every other action: one accent, lime is only for Ready.
+    action: "bg-primary text-on-primary hover:bg-primary-hover",
     secondary: "border border-line bg-raised text-ink hover:bg-hover",
     ghost: "text-ink-2 hover:bg-hover hover:text-ink",
     danger: "border border-bad-line/60 bg-bad/10 text-bad hover:bg-bad/20",
@@ -70,7 +72,7 @@ export function LinkButton({
 
 /* ---------- Form fields ---------- */
 export const inputClass =
-  "motion-base w-full rounded-lg border border-line bg-canvas px-3 py-2 body-3 text-ink placeholder:text-muted hover:border-muted focus-visible:border-primary disabled:opacity-50";
+  "motion-base h-10 w-full rounded-xl border border-line bg-canvas px-3 body-3 text-ink placeholder:text-muted hover:border-muted focus-visible:border-primary disabled:opacity-50";
 
 export function Field({
   label,
@@ -94,7 +96,7 @@ export function Field({
 
 /* ---------- Surfaces ---------- */
 export function Card({ className, children }: { className?: string; children: React.ReactNode }) {
-  return <section className={cx("rounded-xl border border-line bg-surface", className)}>{children}</section>;
+  return <section className={cx("rounded-2xl border border-line bg-surface", className)}>{children}</section>;
 }
 
 export function PageHeader({
@@ -109,8 +111,8 @@ export function PageHeader({
   return (
     <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div className="flex min-w-0 flex-col gap-1">
-        <h1 className="heading-5 md:heading-4 italic text-ink">{title}</h1>
-        {subtitle && <p className="body-5 max-w-[680px] text-ink-2">{subtitle}</p>}
+        <h1 className="heading-5 md:heading-4 text-ink">{title}</h1>
+        {subtitle && <p className="body-5 max-w-[680px] text-ink-2">{/\.\s/.test(subtitle) ? subtitle : subtitle.replace(/\.$/, "")}</p>}
       </div>
       {action}
     </header>
@@ -121,7 +123,7 @@ export function PageHeader({
 type Tone = "ready" | "neutral" | "open" | "present" | "absent";
 
 const toneClass: Record<Tone, string> = {
-  ready: "border-go bg-go text-white",
+  ready: "border-go bg-go text-ink",
   present: "border-accent/60 bg-accent/15 text-accent-ink",
   absent: "border-bad-line/60 bg-bad/10 text-bad",
   open: "border-accent/60 bg-accent/15 text-accent-ink",
@@ -133,6 +135,26 @@ export function Badge({ tone = "neutral", icon, children }: { tone?: Tone; icon?
     <span className={cx("inline-flex items-center gap-1 rounded-md border px-2 py-0.5 caption-3", toneClass[tone])}>
       {icon}
       {children}
+    </span>
+  );
+}
+
+// The signature detail: a small dot in the sport's Onthi accent next to the name. Colour marks the sport and nothing else.
+const SPORT_DOT: Record<string, string> = {
+  Football: "bg-go",
+  Cricket: "bg-sport-sky",
+  Badminton: "bg-sport-purple",
+  Volleyball: "bg-sport-peach",
+  Kabaddi: "bg-accent-ink",
+  Hockey: "bg-sport-yellow",
+  "Table Tennis": "bg-sport-lilac",
+};
+
+export function SportTag({ sport, onDark }: { sport: string; onDark?: boolean }) {
+  return (
+    <span className={cx("inline-flex items-center gap-1.5 caption-4", onDark ? "text-on-dark/80" : "text-ink-2")}>
+      <span aria-hidden className={cx("size-2 shrink-0 rounded-full ring-1 ring-ink/15", SPORT_DOT[sport] ?? "bg-raised")} />
+      {sport}
     </span>
   );
 }
@@ -208,7 +230,7 @@ export function ErrorNote({ children, onRetry }: { children: React.ReactNode; on
   return (
     <div
       role="alert"
-      className="flex flex-wrap items-center gap-3 rounded-lg border border-bad-line/60 bg-bad/10 px-3 py-2 text-bad"
+      className="flex flex-wrap items-center gap-3 rounded-lg border-l-4 border-bad-line bg-alert px-3 py-2 text-bad"
     >
       <Warning size={20} weight="fill" aria-hidden className="shrink-0 text-bad" />
       <p className="body-5 min-w-0 flex-1 break-words">{children}</p>

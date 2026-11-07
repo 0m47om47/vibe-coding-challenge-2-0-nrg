@@ -34,9 +34,9 @@ export default function ReadyBoardPage() {
 
       <dl className="mb-6 grid grid-cols-3 gap-3">
         {totals.map(([label, value]) => (
-          <div key={label} className="rounded-xl border border-line bg-surface p-4">
-            <dt className="caption-4 text-muted">{label}</dt>
-            <dd className="heading-5 md:heading-4 text-ink">{value ?? <Skeleton className="mt-1 h-7 w-12" />}</dd>
+          <div key={label} className="rounded-2xl border border-dark bg-dark p-5">
+            <dt className="caption-4 text-on-dark/70">{label}</dt>
+            <dd className="heading-5 md:heading-4 font-mono font-bold text-primary-soft">{value ?? <Skeleton className="mt-1 h-7 w-12" />}</dd>
           </div>
         ))}
       </dl>

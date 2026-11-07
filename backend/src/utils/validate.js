@@ -35,6 +35,12 @@ export function assertString(v, name, { min = 1, max = 80 } = {}) {
   return s;
 }
 
+export function assertEmail(v, name = "email") {
+  const s = assertString(v, name, { min: 5, max: 120 }).toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s)) throw bad(`${name} must be a valid email address.`);
+  return s;
+}
+
 export function assertInt(v, name, { min = 0, max = 1000 } = {}) {
   if (!Number.isInteger(v) || v < min || v > max) {
     throw bad(`${name} must be a whole number between ${min} and ${max}.`);

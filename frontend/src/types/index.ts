@@ -51,6 +51,14 @@ export interface PhotoUploadTicket {
   allowedFormats: string;
 }
 
+// A scout account, as the coach sees it (GET /api/users/scouts).
+export interface ScoutAccount {
+  id: string;
+  email: string;
+  status: "pending" | "active"; // pending = signed up by email, waiting for the coach
+  createdAt: string; // ISO date-time
+}
+
 export interface PlayerStats extends Player {
   sessionsHeld: number;
   sessionsPresent: number;

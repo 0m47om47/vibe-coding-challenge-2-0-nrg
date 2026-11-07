@@ -1,35 +1,50 @@
 @import "tailwindcss";
 
 /*
-  Sports-club theme from the team palette: 4758D6 blue, 201C1C near-black, EA3A3A red, EEEDED light grey,
-  E1811F orange. Light pages with a near-black sidebar and score banner. Blue is the primary action and the
-  present mark, red is absent, orange is Ready. Derived shades (white cards, border grey, darker text tones
-  for contrast) are marked below. No gradients, glows or decorative backgrounds.
+  Onthi design system (DESIGN.md): playful and energetic, with a light #F7F7FD canvas, indigo #6366F1 as the
+  brand accent, slate text, Be Vietnam Pro at weight 600 for headings, 12px controls and 16px cards, soft
+  no coloured shadows or gradients, indigo as the single accent, lime for Ready only, and a small sport colour dot as the one signature detail. About
+  70% of the screen is light and 30% dark (sidebar, profile banner, KPI tiles), using the dark theme values
+  from the same DESIGN.md (#0C0C13 bg, #1B1B21 surface, #7678F3 accent). Colour names stay semantic
+  (text-ink, bg-primary, bg-dark, bg-alert). Shades the DESIGN.md does not list are derived and marked.
 */
 @theme {
-  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-be-vietnam), system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-be-vietnam), system-ui, -apple-system, sans-serif; /* numbers use the brand face */
 
-  --color-canvas: #eeeded;        /* palette: light grey, page background */
-  --color-surface: #ffffff;       /* derived: cards */
-  --color-raised: #f6f5f5;        /* derived: inputs, tooltips */
-  --color-hover: #e2e1e1;         /* derived */
-  --color-line: #cfcdcd;          /* derived: borders */
-  --color-muted: #5f5a5a;         /* derived: captions */
+  --color-canvas: #f7f7fd;        /* DESIGN.md canvas */
+  --color-surface: #ffffff;       /* cards (DESIGN.md footer and outline-button white) */
+  --color-raised: #f0f0f5;        /* DESIGN.md light surface: inputs, tooltips, row hover */
+  --color-hover: #ede9fe;         /* DESIGN.md neutral-2: lilac hover and selected tint */
+  --color-line: #e2e8f0;          /* DESIGN.md hairline */
+  --color-muted: #64748b;         /* DESIGN.md body slate (the lighter muted #94A3B8 fails contrast for captions) */
 
-  --color-dark: #201c1c;          /* palette: near-black, sidebar and score banner */
-  --color-on-dark: #eeeded;       /* palette: text on near-black */
-  --color-ink: #201c1c;           /* palette: main text */
-  --color-ink-2: #3d3838;         /* derived: secondary text */
-  --color-primary: #4758d6;       /* palette: blue, buttons and selected states */
-  --color-primary-hover: #3647bd; /* derived */
+  --color-dark: #1b1b21;          /* DESIGN.md dark surface: the dark 30% (banner, KPI tiles) */
+  --color-dark-deep: #0c0c13;     /* DESIGN.md dark bg: the sidebar sits darker than the dark cards */
+  --color-on-dark: #f9f9fe;       /* DESIGN.md dark text */
+  --color-ink: #1e293b;           /* DESIGN.md ink */
+  --color-ink-2: #475569;         /* derived: body text, 7:1 on white */
+  --color-primary: #6366f1;       /* DESIGN.md brand accent: buttons and the current nav item */
+  --color-primary-hover: #4f46e5; /* DESIGN.md accent-3 */
+  --color-primary-soft: #7678f3;  /* DESIGN.md dark-theme accent: indigo numbers on dark surfaces */
   --color-on-primary: #ffffff;
-  --color-accent: #4758d6;        /* palette: blue, present marks and bars */
-  --color-accent-ink: #3a49b8;    /* derived: blue for small text */
-  --color-highlight: #e1811f;     /* palette: orange, Ready fills */
-  --color-highlight-ink: #9a5300; /* derived: orange dark enough for text */
-  --color-bad: #b81f1f;           /* derived: red for text and strong fills */
-  --color-bad-line: #ea3a3a;      /* palette: red, absent marks and borders */
-  --color-go: #1e8a4c;            /* derived: green, Ready tags. Not in the palette, requested for Ready */
+  --color-accent: #6366f1;        /* bars and present marks (fills) */
+  --color-accent-ink: #4f46e5;    /* indigo for text and thin lines on white, 6:1 */
+  --color-highlight: #c2410c;     /* DESIGN.md accent-4: warnings and the 75% line */
+  --color-highlight-ink: #c2410c;
+  --color-bad: #c2410c;           /* DESIGN.md accent-4: alert text and absent marks (Onthi has no red) */
+  --color-bad-line: #c2410c;      /* DESIGN.md accent-4: alert bar and borders */
+  --color-alert: #feebd4;         /* derived: DESIGN.md accent-6 peach, lightened so the text on it passes contrast */
+  --color-go: #58cc02;            /* DESIGN.md lime green: Ready tags and action buttons */
+  --color-link: #6d28d9;          /* DESIGN.md link purple */
+
+  /* DESIGN.md decorative accents, one per sport (the file says they are for category distinction) */
+  --color-sport-sky: #0369a1;     /* accent-1 */
+  --color-sport-purple: #7c3aed;  /* accent-2 */
+  --color-sport-yellow: #fde68a;  /* accent-5 */
+  --color-sport-peach: #fed7aa;   /* accent-6 */
+  --color-sport-lilac: #ede9fe;   /* neutral-2 */
+
 
   --ease-brand: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -47,6 +62,7 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums; /* figures line up in columns */
   min-height: 100vh;
 }
 
@@ -56,12 +72,12 @@ body {
 }
 
 /* ---------- Named text styles (sizes come from Tailwind's type scale) ---------- */
-@utility heading-1 { @apply text-6xl font-extrabold tracking-tight; text-wrap: balance; }
-@utility heading-2 { @apply text-5xl font-extrabold tracking-tight; text-wrap: balance; }
-@utility heading-3 { @apply text-4xl font-extrabold tracking-tight; text-wrap: balance; }
-@utility heading-4 { @apply text-3xl font-extrabold tracking-tight; text-wrap: balance; }
-@utility heading-5 { @apply text-2xl font-extrabold tracking-tight; text-wrap: balance; }
-@utility heading-6 { @apply text-xl font-extrabold tracking-tight; text-wrap: balance; }
+@utility heading-1 { @apply text-6xl font-semibold tracking-tight; text-wrap: balance; }
+@utility heading-2 { @apply text-5xl font-semibold tracking-tight; text-wrap: balance; }
+@utility heading-3 { @apply text-4xl font-semibold tracking-tight; text-wrap: balance; }
+@utility heading-4 { @apply text-3xl font-semibold tracking-tight; text-wrap: balance; }
+@utility heading-5 { @apply text-2xl font-semibold tracking-tight; text-wrap: balance; }
+@utility heading-6 { @apply text-xl font-semibold tracking-tight; text-wrap: balance; }
 
 @utility title-1 { @apply text-xl font-semibold; }
 @utility title-2 { @apply text-lg font-semibold; }
