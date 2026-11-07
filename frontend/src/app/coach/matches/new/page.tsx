@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowLeft, CalendarPlus } from "@phosphor-icons/react";
+import { useAuth } from "@/components/AuthProvider";
 import { useSportFilter } from "@/components/SportFilter";
 import { SportSelect } from "@/components/SportSelect";
 import { Button, Card, EmptyState, ErrorNote, Field, LinkButton, ListSkeleton, PageHeader, inputClass, cx } from "@/components/ui";
@@ -17,7 +18,9 @@ export default function NewMatchPage() {
   const router = useRouter();
   const [date, setDate] = useState(todayISO());
   const { sport: filter } = useSportFilter();
-  const [sport, setSport] = useState<Sport>(filter || "Football");
+  const { user } = useAuth();
+  const firstSport = user?.academy.sports[0] ?? "Football";
+  const [sport, setSport] = useState<Sport>(filter || firstSport);
   useEffect(() => {
     if (filter) setSport(filter);
   }, [filter]);

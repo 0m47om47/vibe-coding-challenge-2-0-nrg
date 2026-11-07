@@ -10,6 +10,7 @@ import playerRoutes from "./routes/players.js";
 import sessionRoutes from "./routes/sessions.js";
 import matchRoutes from "./routes/matches.js";
 import userRoutes from "./routes/users.js";
+import academyRoutes from "./routes/academies.js";
 
 const app = express();
 
@@ -31,6 +32,7 @@ app.use("/api/players", playerRoutes);
 app.use("/api/sessions", sessionRoutes);
 app.use("/api/matches", matchRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api", academyRoutes); // /api/academies (public) and /api/academy
 
 app.use("/api", (_req, _res, next) => next(new HttpError(404, "Not found.")));
 

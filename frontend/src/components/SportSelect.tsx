@@ -1,3 +1,4 @@
+import { useAuth } from "@/components/AuthProvider";
 import { inputClass } from "@/components/ui";
 import { SPORTS, type Sport } from "@/types";
 
@@ -13,6 +14,9 @@ export function SportSelect<T extends Sport | "">({
   allLabel?: string;
   disabled?: boolean;
 }) {
+  // Signed in: only the sports this academy runs. Signed out (public pages): all of them.
+  const { user } = useAuth();
+  const sports = user?.academy.sports ?? SPORTS;
   return (
     <select
       className={inputClass}
@@ -25,7 +29,7 @@ export function SportSelect<T extends Sport | "">({
           {allLabel}
         </option>
       )}
-      {SPORTS.map((s) => (
+      {sports.map((s) => (
         <option key={s} value={s} className="bg-surface text-ink">
           {s}
         </option>

@@ -10,6 +10,7 @@ import { getPlayerStats } from "../services/stats.js";
 import { cloudinaryConfig, createUploadTicket, isPlayerPhotoUrl } from "../services/cloudinary.js";
 import { HttpError } from "../utils/httpError.js";
 import { playerJSON } from "../utils/toJSON.js";
+import { assertAcademySport, assertUsername } from "../utils/academy.js";
 import {
   assertBody,
   assertSport,
@@ -23,8 +24,8 @@ router.use(requireAuth);
 
 // coach: everyone. scout: only Ready players. player: only themselves.
 router.get("/", async (req, res) => {
-  const { role, playerId } = req.user;
-  const filter = {};
+  const { role, playerId, academyId } = req.user;
+  const filter = { academyId };
   if (req.query.sport !== undefined) filter.sport = assertSport(req.query.sport);
 
   if (role === "player") {
@@ -46,7 +47,7 @@ async function visiblePlayer(req) {
   if (!isObjectId(id)) throw notFound;
   if (role === "player" && id !== playerId) throw notFound;
 
-  const [player] = await getPlayerStats({ _id: id });
+  const [player] = await getPlayerStats({ _id: id, academyId: req.user.academyId });
   if (!player || (role === "scout" && !player.ready)) throw notFound;
   return player;
 }
@@ -59,9 +60,9 @@ router.get("/:id", async (req, res) => {
 router.get("/:id/history", async (req, res) => {
   const player = await visiblePlayer(req);
   const [sessions, matches, sportMatches] = await Promise.all([
-    Session.find({ status: "closed", "attendance.player": player.id }).sort({ date: 1, createdAt: 1 }).lean(),
-    Match.find({ "scores.player": player.id }).sort({ date: -1, createdAt: -1 }).lean(),
-    Match.find({ sport: player.sport }).lean(),
+    Session.find({ academyId: req.user.academyId, status: "closed", "attendance.player": player.id }).sort({ date: 1, createdAt: 1 }).lean(),
+    Match.find({ academyId: req.user.academyId, "scores.player": player.id }).sort({ date: -1, createdAt: -1 }).lean(),
+    Match.find({ academyId: req.user.academyId, sport: player.sport }).lean(), // "academy best" is within this academy
   ]);
   res.json({
     history: {
@@ -85,23 +86,21 @@ router.post("/", requireRole("coach"), async (req, res) => {
   const body = assertBody(req);
   const name = assertString(body.name, "name");
   const age = assertInt(body.age, "age", { min: 3, max: 100 });
-  const sport = assertSport(body.sport);
-  const username = assertString(body.username, "username", { min: 3, max: 30 }).toLowerCase();
+  const sport = assertAcademySport(req, body.sport);
+  const username = assertUsername(body.username);
   const password = assertString(body.password, "password", { min: 6, max: 100 });
-  if (!/^[a-z0-9_.-]+$/.test(username)) {
-    throw new HttpError(400, "username may only use letters, numbers, dot, dash and underscore.");
-  }
 
   const taken = () => new HttpError(409, `The username "${username}" is already taken.`);
   if (await User.exists({ username })) throw taken();
 
-  const player = await Player.create({ name, age, sport });
+  const player = await Player.create({ academyId: req.user.academyId, name, age, sport });
   try {
     await User.create({
       username,
       passwordHash: await bcrypt.hash(password, 10),
       role: "player",
       playerId: player._id,
+      academyId: req.user.academyId,
     });
   } catch (err) {
     await Player.deleteOne({ _id: player._id });
@@ -164,10 +163,10 @@ router.patch("/:id", canEdit, async (req, res) => {
   const update = {};
   if (Object.keys($set).length) update.$set = $set;
   if (Object.keys($unset).length) update.$unset = $unset;
-  const result = await Player.updateOne({ _id: id }, update);
+  const result = await Player.updateOne({ _id: id, academyId: req.user.academyId }, update);
   if (result.matchedCount === 0) throw new HttpError(404, "Player not found.");
 
-  const [player] = await getPlayerStats({ _id: id });
+  const [player] = await getPlayerStats({ _id: id, academyId: req.user.academyId });
   res.json({ player });
 });
 
@@ -176,7 +175,7 @@ router.post("/:id/photo-signature", canEdit, async (req, res) => {
   const id = ownedPlayerId(req);
   const cfg = cloudinaryConfig();
   if (!cfg) throw new HttpError(503, "Photo upload is not set up yet. Ask the coach to add the Cloudinary keys.");
-  if (!(await Player.exists({ _id: id }))) throw new HttpError(404, "Player not found.");
+  if (!(await Player.exists({ _id: id, academyId: req.user.academyId }))) throw new HttpError(404, "Player not found.");
   res.json({ ticket: createUploadTicket(id, cfg) });
 });
 
