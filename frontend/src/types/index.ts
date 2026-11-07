@@ -5,35 +5,11 @@ export type Mark = "present" | "absent";
 export const SPORTS = ["Football", "Cricket", "Badminton", "Volleyball", "Kabaddi", "Hockey", "Table Tennis"] as const;
 export type Sport = (typeof SPORTS)[number];
 
-// The academy a signed-in user belongs to. Every list and form only shows this academy's data and sports.
-export interface AcademySummary {
-  id: string;
-  name: string;
-  town?: string;
-  sports: Sport[]; // the sports this academy runs, in the standard SPORTS order
-}
-
 export interface SessionUser {
   id: string;
   username: string;
   role: Role;
   playerId?: string; // only for role "player"
-  academy: AcademySummary;
-}
-
-// GET /api/academies (public): what a scout picks from when asking for access.
-export interface AcademyListItem {
-  id: string;
-  name: string;
-  town?: string;
-}
-
-// GET /api/users/coaches (coach only): the coaches of the coach's own academy.
-export interface CoachAccount {
-  id: string;
-  username: string;
-  you: boolean; // the signed-in coach
-  createdAt: string; // ISO date-time
 }
 
 export interface Player {

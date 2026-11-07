@@ -11,7 +11,6 @@ const scoreSchema = new mongoose.Schema(
 
 const matchSchema = new mongoose.Schema(
   {
-    academyId: { type: mongoose.Schema.Types.ObjectId, ref: "Academy", required: true, index: true },
     date: { type: String, required: true }, // YYYY-MM-DD
     sport: { type: String, enum: SPORTS, required: true },
     opponent: { type: String, required: true, trim: true },

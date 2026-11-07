@@ -3,7 +3,6 @@ import { SPORTS } from "../constants.js";
 
 const playerSchema = new mongoose.Schema(
   {
-    academyId: { type: mongoose.Schema.Types.ObjectId, ref: "Academy", required: true, index: true },
     name: { type: String, required: true, trim: true },
     age: { type: Number, required: true, min: 3, max: 100 },
     sport: { type: String, enum: SPORTS, required: true },

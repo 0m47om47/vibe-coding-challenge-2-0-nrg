@@ -2,15 +2,15 @@
 // State lives in localStorage so a refresh keeps the demo data. Clear it with: localStorage.clear()
 import { SPORTS } from "@/types";
 import { SPORT_STATS } from "@/lib/sportStats";
-import type { AcademySummary, Mark, Player, PlayerStats, PracticeSession, Match, SessionUser, Sport } from "@/types";
-import { seedDb, type MockAcademy, type MockDb, type MockPlayer, type MockSession, type MockMatch, type MockUser } from "./data";
+import type { Mark, Player, PlayerStats, PracticeSession, Match, SessionUser, Sport } from "@/types";
+import { seedDb, type MockDb, type MockSession, type MockMatch, type MockUser } from "./data";
 
 export interface MockResponse {
   status: number;
   body: unknown;
 }
 
-const DB_KEY = "academy-mock-db-v5";
+const DB_KEY = "academy-mock-db-v3";
 const USER_KEY = "academy-mock-user";
 
 const ok = (body: unknown, status = 200): MockResponse => ({ status, body });
@@ -56,40 +56,14 @@ function currentUser(db: MockDb): MockUser | null {
   }
 }
 
-const academyOut = (a: MockAcademy): AcademySummary => ({
-  id: a.id,
-  name: a.name,
-  ...(a.town ? { town: a.town } : {}),
-  sports: SPORTS.filter((s) => a.sports.includes(s)),
-});
-
-const sessionUser = (db: MockDb, u: MockUser): SessionUser => ({
+const sessionUser = (u: MockUser): SessionUser => ({
   id: u.id,
   username: u.username,
   role: u.role,
   ...(u.playerId ? { playerId: u.playerId } : {}),
-  academy: academyOut(db.academies.find((a) => a.id === u.academyId)!),
 });
 
-// The signed-in user's academy only. Same objects as in db, so changes to them are saved; adding and removing
-// records still goes through db itself.
-function scoped(db: MockDb, academyId: string): MockDb {
-  return {
-    academies: db.academies.filter((a) => a.id === academyId),
-    users: db.users.filter((u) => u.academyId === academyId),
-    players: db.players.filter((p) => p.academyId === academyId),
-    sessions: db.sessions.filter((s) => s.academyId === academyId),
-    matches: db.matches.filter((m) => m.academyId === academyId),
-    seq: db.seq,
-  };
-}
-
-const USERNAME_RE = /^[a-z0-9_.-]+$/;
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-const keyOf = (name: string) => name.trim().toLowerCase().replace(/\s+/g, " ");
-
-function statsFor(db: MockDb, full: Player | MockPlayer): PlayerStats {
-  const { academyId: _academy, ...p } = full as MockPlayer; // never sent to the browser, like the real API
+function statsFor(db: MockDb, p: Player): PlayerStats {
   let held = 0;
   let present = 0;
   for (const s of db.sessions) {
@@ -146,11 +120,7 @@ export async function mockRequest(method: string, path: string, body?: unknown):
   const b: Body = body && typeof body === "object" ? (body as Body) : {};
   const me = currentUser(db);
 
-  // ---- public: auth and the academy list
-  if (method === "GET" && pathname === "/academies") {
-    const list = [...db.academies].sort((a, c) => a.name.localeCompare(c.name));
-    return ok({ academies: list.map((a) => ({ id: a.id, name: a.name, ...(a.town ? { town: a.town } : {}) })) });
-  }
+  // ---- auth
   if (method === "POST" && pathname === "/auth/login") {
     const username = String(b.username ?? "").trim().toLowerCase();
     const user = db.users.find((u) => (u.username === username || u.email === username) && u.password === b.password);
@@ -159,140 +129,42 @@ export async function mockRequest(method: string, path: string, body?: unknown):
       return fail(403, "Your request is waiting for the coach to approve it. Try again after they do.");
     }
     localStorage.setItem(USER_KEY, user.id);
-    return ok({ user: sessionUser(db, user) });
-  }
-  if (method === "POST" && pathname === "/auth/register-academy") {
-    const name = String(b.academyName ?? "").trim();
-    const town = String(b.town ?? "").trim();
-    const username = String(b.username ?? "").trim().toLowerCase();
-    const password = String(b.password ?? "");
-    const sports = Array.isArray(b.sports) ? (b.sports as unknown[]) : [];
-    if (name.length < 3 || name.length > 60) return fail(400, "academy name must be 3-60 characters.");
-    if (town && (town.length < 2 || town.length > 60)) return fail(400, "town must be 2-60 characters.");
-    if (sports.length === 0) return fail(400, "Choose at least one sport.");
-    if (!sports.every(isSport)) return BAD_SPORT;
-    if (username.length < 3 || username.length > 30 || !USERNAME_RE.test(username)) {
-      return fail(400, "username may only use letters, numbers, dot, dash and underscore.");
-    }
-    if (password.length < 6 || password.length > 100) return fail(400, "password must be 6-100 characters.");
-    if (db.academies.some((a) => a.nameKey === keyOf(name))) return fail(409, `An academy called "${name}" is already registered.`);
-    if (db.users.some((u) => u.username === username || u.email === username)) return fail(409, `The username "${username}" is already taken.`);
-    const academy: MockAcademy = { id: nextId(db, "a"), name, nameKey: keyOf(name), ...(town ? { town } : {}), sports: SPORTS.filter((s) => sports.includes(s)) };
-    const coach: MockUser = { id: nextId(db, "u"), username, password, role: "coach", academyId: academy.id, createdAt: new Date().toISOString() };
-    db.academies.push(academy);
-    db.users.push(coach);
-    saveDb(db);
-    localStorage.setItem(USER_KEY, coach.id);
-    return ok({ user: sessionUser(db, coach) }, 201);
+    return ok({ user: sessionUser(user) });
   }
   if (method === "POST" && pathname === "/auth/register-scout") {
     const email = String(b.email ?? "").trim().toLowerCase();
     const password = String(b.password ?? "");
-    if (!EMAIL_RE.test(email) || email.length > 120) return fail(400, "email must be a valid email address.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) || email.length > 120) return fail(400, "email must be a valid email address.");
     if (password.length < 6 || password.length > 100) return fail(400, "password must be 6-100 characters.");
-    const academy = db.academies.find((a) => a.id === b.academyId);
-    if (!academy) return fail(400, "Choose the academy you want to scout.");
     if (db.users.some((u) => u.email === email || u.username === email)) return fail(409, "An account with this email already exists.");
-    db.users.push({ id: nextId(db, "u"), username: email, email, password, role: "scout", status: "pending", createdAt: new Date().toISOString(), academyId: academy.id });
+    db.users.push({ id: nextId(db, "u"), username: email, email, password, role: "scout", status: "pending", createdAt: new Date().toISOString() });
     saveDb(db);
-    return ok({ ok: true, message: `Request sent to ${academy.name}. A coach there has to approve it before you can sign in.` }, 201);
+    return ok({ ok: true, message: "Request sent. The coach has to approve it before you can sign in." }, 201);
   }
   if (method === "POST" && pathname === "/auth/logout") {
     localStorage.removeItem(USER_KEY);
     return ok({ ok: true });
   }
   if (!me) return notLoggedIn();
-  const d = scoped(db, me.academyId);
-  const academy = db.academies.find((a) => a.id === me.academyId)!;
-  const runs = (sport: unknown) => isSport(sport) && academy.sports.includes(sport);
-  const NOT_RUN = (sport: unknown) => fail(400, `${academy.name} does not run ${String(sport)}. Add it in Academy settings first.`);
-  if (method === "GET" && pathname === "/auth/me") return ok({ user: sessionUser(db, me) });
-
-  // ---- the academy itself
-  if (pathname === "/academy") {
-    if (method === "GET") return ok({ academy: academyOut(academy) });
-    if (method === "PATCH") {
-      if (me.role !== "coach") return forbidden();
-      let changed = false;
-      if (b.name !== undefined) {
-        const name = String(b.name ?? "").trim();
-        if (name.length < 3 || name.length > 60) return fail(400, "academy name must be 3-60 characters.");
-        if (db.academies.some((a) => a.id !== academy.id && a.nameKey === keyOf(name))) return fail(409, `An academy called "${name}" is already registered.`);
-        academy.name = name;
-        academy.nameKey = keyOf(name);
-        changed = true;
-      }
-      if (b.town !== undefined) {
-        const town = String(b.town ?? "").trim();
-        if (town && (town.length < 2 || town.length > 60)) return fail(400, "town must be 2-60 characters.");
-        if (town) academy.town = town;
-        else delete academy.town;
-        changed = true;
-      }
-      if (b.sports !== undefined) {
-        const sports = Array.isArray(b.sports) ? (b.sports as unknown[]) : [];
-        if (sports.length === 0) return fail(400, "Choose at least one sport.");
-        if (!sports.every(isSport)) return BAD_SPORT;
-        const stillUsed = academy.sports.filter((s) => !sports.includes(s) && d.players.some((p) => p.sport === s));
-        if (stillUsed.length > 0) {
-          return fail(409, `${stillUsed.join(" and ")} still ${stillUsed.length === 1 ? "has" : "have"} players, so it cannot be removed.`, { stillUsed });
-        }
-        academy.sports = SPORTS.filter((s) => sports.includes(s));
-        changed = true;
-      }
-      if (!changed) return fail(400, "Send at least one of: name, town, sports.");
-      saveDb(db);
-      return ok({ academy: academyOut(academy) });
-    }
-  }
-
-  // ---- coach accounts (coach only)
-  if (seg[0] === "users" && seg[1] === "coaches") {
-    if (me.role !== "coach") return forbidden();
-    const out = (u: MockUser) => ({ id: u.id, username: u.username, you: u.id === me.id, createdAt: u.createdAt ?? "2026-10-01T00:00:00.000Z" });
-    if (method === "GET" && seg.length === 2) {
-      return ok({ coaches: d.users.filter((u) => u.role === "coach").sort((a, c) => (a.createdAt ?? "").localeCompare(c.createdAt ?? "")).map(out) });
-    }
-    if (method === "POST" && seg.length === 2) {
-      const username = String(b.username ?? "").trim().toLowerCase();
-      const password = String(b.password ?? "");
-      if (username.length < 3 || username.length > 30 || !USERNAME_RE.test(username)) {
-        return fail(400, "username may only use letters, numbers, dot, dash and underscore.");
-      }
-      if (password.length < 6 || password.length > 100) return fail(400, "password must be 6-100 characters.");
-      if (db.users.some((u) => u.username === username || u.email === username)) return fail(409, `The username "${username}" is already taken.`);
-      const u: MockUser = { id: nextId(db, "u"), username, password, role: "coach", academyId: academy.id, createdAt: new Date().toISOString() };
-      db.users.push(u);
-      saveDb(db);
-      return ok({ coach: out(u) }, 201);
-    }
-    if (method === "DELETE" && seg.length === 3) {
-      if (seg[2] === me.id) return fail(400, "You cannot remove your own coach account.");
-      const u = d.users.find((x) => x.id === seg[2] && x.role === "coach");
-      if (!u) return fail(404, "Coach not found.");
-      db.users = db.users.filter((x) => x.id !== u.id);
-      saveDb(db);
-      return ok({ ok: true });
-    }
-  }
+  if (method === "GET" && pathname === "/auth/me") return ok({ user: sessionUser(me) });
 
   // ---- scout accounts (coach only)
   if (seg[0] === "users" && seg[1] === "scouts") {
     if (me.role !== "coach") return forbidden();
     const out = (u: MockUser) => ({ id: u.id, email: u.email ?? u.username, status: u.status ?? "active", createdAt: u.createdAt ?? "2026-10-01T00:00:00.000Z" });
-    const scoutOf = (id: string | undefined) => d.users.find((u) => u.id === id && u.role === "scout");
+    const scoutOf = (id: string | undefined) => db.users.find((u) => u.id === id && u.role === "scout");
     if (method === "GET" && seg.length === 2) {
-      const all = d.users.filter((u) => u.role === "scout").sort((a, c) => (c.createdAt ?? "").localeCompare(a.createdAt ?? ""));
+      const all = db.users.filter((u) => u.role === "scout").sort((a, c) => (c.createdAt ?? "").localeCompare(a.createdAt ?? ""));
       const list = [...all.filter((u) => u.status === "pending"), ...all.filter((u) => u.status !== "pending")];
       return ok({ scouts: list.map(out) });
     }
     if (method === "POST" && seg.length === 2) {
       const email = String(b.email ?? "").trim().toLowerCase();
       const password = String(b.password ?? "");
-      if (!EMAIL_RE.test(email) || email.length > 120) return fail(400, "email must be a valid email address.");
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) || email.length > 120) return fail(400, "email must be a valid email address.");
       if (password.length < 6 || password.length > 100) return fail(400, "password must be 6-100 characters.");
-      if (d.users.some((u) => u.email === email || u.username === email)) return fail(409, "An account with this email already exists.");
-      const u: MockUser = { id: nextId(db, "u"), username: email, email, password, role: "scout", status: "active", createdAt: new Date().toISOString(), academyId: academy.id };
+      if (db.users.some((u) => u.email === email || u.username === email)) return fail(409, "An account with this email already exists.");
+      const u: MockUser = { id: nextId(db, "u"), username: email, email, password, role: "scout", status: "active", createdAt: new Date().toISOString() };
       db.users.push(u);
       saveDb(db);
       return ok({ scout: out(u) }, 201);
@@ -318,30 +190,30 @@ export async function mockRequest(method: string, path: string, body?: unknown):
     if (method === "GET" && seg.length === 1) {
       const sport = q.get("sport");
       if (sport && !isSport(sport)) return BAD_SPORT;
-      let list = d.players.filter((p) => !sport || p.sport === sport).map((p) => statsFor(d, p));
+      let list = db.players.filter((p) => !sport || p.sport === sport).map((p) => statsFor(db, p));
       if (me.role === "player") list = list.filter((p) => p.id === me.playerId);
       if (me.role === "scout") list = list.filter((p) => p.ready);
       return ok({ players: list.sort((a, c) => a.name.localeCompare(c.name)) });
     }
     if (method === "GET" && seg.length === 2) {
-      const p = d.players.find((x) => x.id === seg[1]);
+      const p = db.players.find((x) => x.id === seg[1]);
       if (!p || (me.role === "player" && p.id !== me.playerId)) return fail(404, "Player not found.");
-      const stats = statsFor(d, p);
+      const stats = statsFor(db, p);
       if (me.role === "scout" && !stats.ready) return fail(404, "Player not found.");
       return ok({ player: stats });
     }
     if (method === "GET" && seg.length === 3 && seg[2] === "history") {
-      const p = d.players.find((x) => x.id === seg[1]);
+      const p = db.players.find((x) => x.id === seg[1]);
       if (!p || (me.role === "player" && p.id !== me.playerId)) return fail(404, "Player not found.");
-      if (me.role === "scout" && !statsFor(d, p).ready) return fail(404, "Player not found.");
-      const sessions = d.sessions
+      if (me.role === "scout" && !statsFor(db, p).ready) return fail(404, "Player not found.");
+      const sessions = db.sessions
         .filter((s) => s.status === "closed")
         .flatMap((s) => {
           const mark = s.attendance.find((a) => a.playerId === p.id)?.mark;
           return mark ? [{ id: s.id, date: s.date, sport: s.sport, mark }] : [];
         })
         .sort((a, c) => a.date.localeCompare(c.date));
-      const matches = d.matches
+      const matches = db.matches
         .flatMap((m) => {
           const entry = m.scores.find((x) => x.playerId === p.id);
           return entry ? [{ id: m.id, date: m.date, opponent: m.opponent, stats: entry.stats }] : [];
@@ -349,7 +221,7 @@ export async function mockRequest(method: string, path: string, body?: unknown):
         .sort((a, c) => c.date.localeCompare(a.date));
       // Academy best in the player's sport: anonymous maxima, same as backend/src/services/peers.js
       const per = new Map<string, { n: number; sums: Record<string, number> }>();
-      for (const m of d.matches.filter((x) => x.sport === p.sport)) {
+      for (const m of db.matches.filter((x) => x.sport === p.sport)) {
         for (const e of m.scores) {
           const row = per.get(e.playerId) ?? { n: 0, sums: {} };
           row.n++;
@@ -367,7 +239,7 @@ export async function mockRequest(method: string, path: string, body?: unknown):
     }
     if (method === "PATCH" && seg.length === 2) {
       if (me.role === "scout") return forbidden();
-      const p = d.players.find((x) => x.id === seg[1]);
+      const p = db.players.find((x) => x.id === seg[1]);
       if (!p || (me.role === "player" && p.id !== me.playerId)) return fail(404, "Player not found.");
 
       const set: Partial<Record<"photoUrl" | "heightCm" | "weightKg" | "nationality", string | number>> = {};
@@ -404,7 +276,7 @@ export async function mockRequest(method: string, path: string, body?: unknown):
       Object.assign(p, set);
       for (const k of clear) delete p[k];
       saveDb(db);
-      return ok({ player: statsFor(d, p) });
+      return ok({ player: statsFor(db, p) });
     }
     if (method === "POST" && seg.length === 3 && seg[2] === "photo-signature") {
       if (me.role === "scout") return forbidden();
@@ -420,20 +292,18 @@ export async function mockRequest(method: string, path: string, body?: unknown):
         return fail(400, "age must be a whole number between 3 and 100.");
       }
       if (!isSport(b.sport)) return BAD_SPORT;
-      if (!runs(b.sport)) return NOT_RUN(b.sport);
       if (username.length < 3 || !/^[a-z0-9_.-]+$/.test(username)) {
         return fail(400, "username may only use letters, numbers, dot, dash and underscore.");
       }
       if (password.length < 6) return fail(400, "password must be 6-100 characters.");
-      if (db.users.some((u) => u.username === username || u.email === username)) {
+      if (db.users.some((u) => u.username === username)) {
         return fail(409, `The username "${username}" is already taken.`);
       }
-      const player: MockPlayer = { id: nextId(db, "p"), academyId: academy.id, name, age: b.age as number, sport: b.sport };
+      const player: Player = { id: nextId(db, "p"), name, age: b.age as number, sport: b.sport };
       db.players.push(player);
-      db.users.push({ id: nextId(db, "u"), username, password, role: "player", playerId: player.id, academyId: academy.id });
+      db.users.push({ id: nextId(db, "u"), username, password, role: "player", playerId: player.id });
       saveDb(db);
-      const { academyId: _a, ...out } = player;
-      return ok({ player: out }, 201);
+      return ok({ player }, 201);
     }
   }
 
@@ -443,35 +313,33 @@ export async function mockRequest(method: string, path: string, body?: unknown):
   // ---- sessions
   if (seg[0] === "sessions") {
     if (method === "GET" && seg.length === 1) {
-      const list = [...d.sessions].sort((a, c) => (a.date < c.date ? 1 : a.date > c.date ? -1 : 0));
-      return ok({ sessions: list.map((s) => sessionOut(d, s)) });
+      const list = [...db.sessions].sort((a, c) => (a.date < c.date ? 1 : a.date > c.date ? -1 : 0));
+      return ok({ sessions: list.map((s) => sessionOut(db, s)) });
     }
     if (method === "POST" && seg.length === 1) {
       if (!isDate(b.date)) return BAD_DATE;
       if (!isSport(b.sport)) return BAD_SPORT;
-      if (!runs(b.sport)) return NOT_RUN(b.sport);
-      if (d.sessions.some((s) => s.date === b.date && s.sport === b.sport)) {
+      if (db.sessions.some((s) => s.date === b.date && s.sport === b.sport)) {
         return fail(409, `A ${b.sport} session already exists on ${b.date}.`);
       }
       const s: MockSession = {
         id: nextId(db, "s"),
-        academyId: academy.id,
         date: b.date,
         sport: b.sport,
         status: "open",
-        attendance: d.players
+        attendance: db.players
           .filter((p) => p.sport === b.sport)
           .sort((a, c) => a.name.localeCompare(c.name))
           .map((p) => ({ playerId: p.id, mark: null })),
       };
       db.sessions.push(s);
       saveDb(db);
-      return ok({ session: sessionOut(d, s) }, 201);
+      return ok({ session: sessionOut(db, s) }, 201);
     }
-    const session = d.sessions.find((s) => s.id === seg[1]);
+    const session = db.sessions.find((s) => s.id === seg[1]);
     if (seg.length >= 2 && !session) return fail(404, "Session not found.");
     if (session) {
-      if (method === "GET" && seg.length === 2) return ok({ session: sessionOut(d, session) });
+      if (method === "GET" && seg.length === 2) return ok({ session: sessionOut(db, session) });
       if (method === "PATCH" && seg[2] === "attendance") {
         if (session.status === "closed") return fail(409, "This session is closed and can no longer be changed.");
         const marks = b.marks;
@@ -488,20 +356,20 @@ export async function mockRequest(method: string, path: string, body?: unknown):
           session.attendance.find((a) => a.playerId === m.playerId)!.mark = m.mark;
         }
         saveDb(db);
-        return ok({ session: sessionOut(d, session) });
+        return ok({ session: sessionOut(db, session) });
       }
       if (method === "POST" && seg[2] === "close") {
         if (session.status === "closed") return fail(409, "This session is already closed.");
         const unmarked = session.attendance.filter((a) => !a.mark);
         if (unmarked.length > 0) {
-          const names = unmarked.map((a) => nameOf(d, a.playerId));
+          const names = unmarked.map((a) => nameOf(db, a.playerId));
           return fail(409, `Mark every player before closing. Not marked yet: ${names.join(", ")}.`, {
-            unmarked: unmarked.map((a) => ({ playerId: a.playerId, playerName: nameOf(d, a.playerId) })),
+            unmarked: unmarked.map((a) => ({ playerId: a.playerId, playerName: nameOf(db, a.playerId) })),
           });
         }
         session.status = "closed";
         saveDb(db);
-        return ok({ session: sessionOut(d, session) });
+        return ok({ session: sessionOut(db, session) });
       }
     }
   }
@@ -509,20 +377,19 @@ export async function mockRequest(method: string, path: string, body?: unknown):
   // ---- matches
   if (seg[0] === "matches") {
     if (method === "GET" && seg.length === 1) {
-      const list = [...d.matches].sort((a, c) => (a.date < c.date ? 1 : a.date > c.date ? -1 : 0));
-      return ok({ matches: list.map((m) => matchOut(d, m)) });
+      const list = [...db.matches].sort((a, c) => (a.date < c.date ? 1 : a.date > c.date ? -1 : 0));
+      return ok({ matches: list.map((m) => matchOut(db, m)) });
     }
     if (method === "GET" && seg[1] === "eligible") {
       const date = q.get("date");
       const sport = q.get("sport");
       if (!isDate(date)) return BAD_DATE;
       if (!isSport(sport)) return BAD_SPORT;
-      return ok({ players: presentOn(d, date, sport) });
+      return ok({ players: presentOn(db, date, sport) });
     }
     if (method === "POST" && seg.length === 1) {
       if (!isDate(b.date)) return BAD_DATE;
       if (!isSport(b.sport)) return BAD_SPORT;
-      if (!runs(b.sport)) return NOT_RUN(b.sport);
       const opponent = String(b.opponent ?? "").trim();
       if (!opponent || opponent.length > 80) return fail(400, "opponent must be 1-80 characters.");
       const rawScores = b.scores as { playerId: string; stats?: Record<string, unknown> }[] | undefined;
@@ -547,14 +414,14 @@ export async function mockRequest(method: string, path: string, body?: unknown):
         return fail(400, "A player can appear only once on the score sheet.");
       }
 
-      const present = new Set(presentOn(d, b.date, b.sport).map((p) => p.id));
+      const present = new Set(presentOn(db, b.date, b.sport).map((p) => p.id));
       const refused = scores
         .filter((s) => !present.has(s.playerId))
         .map((s) => {
-          const p = d.players.find((x) => x.id === s.playerId);
+          const p = db.players.find((x) => x.id === s.playerId);
           if (!p) return { playerId: s.playerId, playerName: "Unknown player", reason: "does not exist" };
           if (p.sport !== b.sport) return { playerId: p.id, playerName: p.name, reason: `plays ${p.sport}, not ${b.sport}` };
-          const absent = d.sessions.some(
+          const absent = db.sessions.some(
             (x) => x.date === b.date && x.sport === b.sport && x.attendance.some((a) => a.playerId === p.id && a.mark === "absent")
           );
           return {
@@ -566,10 +433,10 @@ export async function mockRequest(method: string, path: string, body?: unknown):
       if (refused.length > 0) {
         return fail(422, refused.map((r) => `${r.playerName} ${r.reason}`).join("; ") + ".", { refused });
       }
-      const m: MockMatch = { id: nextId(db, "m"), academyId: academy.id, date: b.date, sport: b.sport, opponent, scores };
+      const m: MockMatch = { id: nextId(db, "m"), date: b.date, sport: b.sport, opponent, scores };
       db.matches.push(m);
       saveDb(db);
-      return ok({ match: matchOut(d, m) }, 201);
+      return ok({ match: matchOut(db, m) }, 201);
     }
   }
 

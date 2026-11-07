@@ -1,7 +1,4 @@
 import type {
-  AcademyListItem,
-  AcademySummary,
-  CoachAccount,
   Match,
   Mark,
   PhotoUploadTicket,
@@ -77,24 +74,10 @@ export const api = {
   auth: {
     login: (username: string, password: string) =>
       request<{ user: SessionUser }>("POST", "/auth/login", { username, password }),
-    registerScout: (email: string, password: string, academyId: string) =>
-      request<{ ok: true; message: string }>("POST", "/auth/register-scout", { email, password, academyId }),
-    registerAcademy: (body: { academyName: string; town?: string; sports: Sport[]; username: string; password: string }) =>
-      request<{ user: SessionUser }>("POST", "/auth/register-academy", body),
+    registerScout: (email: string, password: string) =>
+      request<{ ok: true; message: string }>("POST", "/auth/register-scout", { email, password }),
     logout: () => request<{ ok: true }>("POST", "/auth/logout"),
     me: () => request<{ user: SessionUser }>("GET", "/auth/me"),
-  },
-  academies: {
-    list: () => request<{ academies: AcademyListItem[] }>("GET", "/academies"),
-  },
-  academy: {
-    get: () => request<{ academy: AcademySummary }>("GET", "/academy"),
-    update: (body: { name?: string; town?: string | null; sports?: Sport[] }) => request<{ academy: AcademySummary }>("PATCH", "/academy", body),
-  },
-  coaches: {
-    list: () => request<{ coaches: CoachAccount[] }>("GET", "/users/coaches"),
-    create: (username: string, password: string) => request<{ coach: CoachAccount }>("POST", "/users/coaches", { username, password }),
-    remove: (id: string) => request<{ ok: true }>("DELETE", `/users/coaches/${id}`),
   },
   scouts: {
     list: () => request<{ scouts: ScoutAccount[] }>("GET", "/users/scouts"),

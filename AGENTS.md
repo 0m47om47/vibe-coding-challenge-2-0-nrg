@@ -6,7 +6,7 @@ This file is the single source of truth for this project. **Humans and AI agents
 
 ## 1. What we are building
 
-A web desk for sports academies. Each academy signs up on its own and only ever sees its own data. It replaces the coach's notebook:
+A web desk for one sports academy. It replaces the coach's notebook:
 
 - The coach keeps a list of players.
 - The coach runs practice sessions and marks who came.
@@ -77,21 +77,7 @@ NEXT_PUBLIC_USE_MOCKS=false            # true = use mock data, no backend needed
 
 These are the rules the code must follow. Marked **[decision]** where we chose a default. Change here first if the team disagrees.
 
-### Academies
-| Method | Path | Who | Body | Result |
-|---|---|---|---|---|
-| GET | `/api/academies` | anyone | – | 200 `{ academies: AcademyListItem[] }`, names and towns only (for scout sign-up) |
-| GET | `/api/academy` | logged in | – | 200 `{ academy: AcademySummary }` |
-| PATCH | `/api/academy` | coach | `{ name?, town? (null or "" clears), sports? }` | 200 `{ academy }`. 409 if the name is taken, or if a removed sport still has players (`details.stillUsed`) |
-
-### Coach accounts (coach only, own academy)
-| Method | Path | Who | Body | Result |
-|---|---|---|---|---|
-| GET | `/api/users/coaches` | coach | – | 200 `{ coaches: CoachAccount[] }`, oldest first |
-| POST | `/api/users/coaches` | coach | `{ username, password }` | 201 `{ coach }`. 409 username taken |
-| DELETE | `/api/users/coaches/:id` | coach | – | 200 `{ ok: true }`. 400 for your own account, 404 for a coach of another academy |
-
-### Scout accounts (coach only, own academy)
+### Scout accounts (coach only)
 | Method | Path | Who | Body | Result |
 |---|---|---|---|---|
 | GET | `/api/users/scouts` | coach | – | 200 `{ scouts: ScoutAccount[] }`, pending first |
@@ -141,15 +127,11 @@ The table lives in `backend/src/constants.js` (`SPORT_STATS`) and `frontend/src/
   - Compare with integers to avoid float bugs: `held > 0 && present * 4 >= held * 3`.
   - Exactly 75% counts as Ready.
 
-### Academies, accounts and scout access
-- **[decision]** Many academies share one app. Every user, player, session and match belongs to exactly one academy (`academyId`), and every query is scoped to the signed-in user's academy. Another academy's records answer 404, as if they did not exist.
-- **[decision]** Anyone can register a new academy from the sign-in page (`/register-academy`): academy name (unique, ignoring case and spaces), town (optional), the sports it runs (at least one), and the first coach's username and password. The academy is live at once and that coach is signed in.
-- An academy runs a subset of the 7 sports. Players, sessions and matches can only be created in sports the academy runs (400 otherwise). Coaches change the name, town and sports in Academy settings (`/coach/academy`). A sport that still has players cannot be removed (409).
-- **[decision]** An academy can have several coaches, all with the same powers. A coach adds or removes coaches in Profiles > Coaches, but cannot remove themselves, so an academy always keeps one.
-- Coaches create player accounts (with the player) and can create scout accounts for their academy.
-- **[decision]** A scout belongs to one academy. A scout can sign up with an **email** and password, choosing the academy (`/register`). That account is **pending**: it cannot sign in and sees nothing until a coach of that academy approves it. Coaches of other academies never see the request.
-- Scouts sign in with their email in the same box as the username (login accepts either). Usernames and emails are unique across all academies.
-- A coach approves or rejects pending requests, creates scouts directly (active at once), and can remove a scout. Removed scouts and removed coaches lose access immediately, even with a valid cookie (the backend reads the account and its academy on every request).
+### Accounts and scout access
+- The coach account is created by the seed. The coach creates player accounts (with the player) and can create scout accounts.
+- **[decision]** A scout can also sign up on the sign-in page with an **email** and password (`/register`). That account is **pending**: it cannot sign in and sees nothing until the coach approves it. This is what stops anyone from becoming a scout.
+- Scouts sign in with their email in the same box as the username (login accepts either).
+- The coach approves or rejects pending requests, creates scouts directly (active at once), and can remove a scout. A removed scout loses access immediately, even with a valid cookie (the backend checks scouts against the database on each request).
 - A wrong password always answers "Wrong username or password", so nobody can learn which emails are waiting. Only the right password on a pending account answers "waiting for the coach".
 
 ### Who sees what (enforced in the backend, not just hidden in the UI)
@@ -176,35 +158,11 @@ type Mark = "present" | "absent";
 const SPORTS = ["Football", "Cricket", "Badminton", "Volleyball", "Kabaddi", "Hockey", "Table Tennis"];   // backend: backend/src/constants.js
 type Sport = (typeof SPORTS)[number];
 
-// The academy a signed-in user belongs to
-interface AcademySummary {
-  id: string;
-  name: string;
-  town?: string;
-  sports: Sport[];             // the sports this academy runs, in the standard SPORTS order
-}
-
-// GET /api/academies (public): what a scout picks from when asking for access
-interface AcademyListItem {
-  id: string;
-  name: string;
-  town?: string;
-}
-
-// GET /api/users/coaches (coach only)
-interface CoachAccount {
-  id: string;
-  username: string;
-  you: boolean;                // the signed-in coach
-  createdAt: string;           // ISO date-time
-}
-
 interface SessionUser {
   id: string;
   username: string;
   role: Role;
   playerId?: string;          // only for role "player"
-  academy: AcademySummary;     // returned by login, register-academy and /api/auth/me
 }
 
 // What the coach sees in GET /api/users/scouts
@@ -305,8 +263,7 @@ All under `/api`. JSON in, JSON out. Errors always use the `ApiError` shape. Aut
 | Method | Path | Who | Body | Success |
 |---|---|---|---|---|
 | POST | `/api/auth/login` | anyone | `{ username, password }` (`username` may be a scout's email) | 200 `{ user: SessionUser }` + sets cookie. 401 on bad login. **403** if the right password belongs to a scout still pending approval |
-| POST | `/api/auth/register-academy` | anyone | `{ academyName, town?, sports: Sport[], username, password }` | 201 `{ user: SessionUser }` + sets cookie (the new coach is signed in). 400 bad name, no sports or unknown sport, bad username or short password; 409 academy name or username taken. Nothing is saved if anything fails |
-| POST | `/api/auth/register-scout` | anyone | `{ email, password, academyId }` | 201 `{ ok, message }`. Creates a **pending** scout in that academy. 400 bad email, short password or no academy; 409 email already used |
+| POST | `/api/auth/register-scout` | anyone | `{ email, password }` | 201 `{ ok, message }`. Creates a **pending** scout. 400 bad email or password under 6 characters, 409 email already used |
 | POST | `/api/auth/logout` | anyone | – | 200 `{ ok: true }`, clears cookie |
 | GET | `/api/auth/me` | logged in | – | 200 `{ user: SessionUser }`, else 401 |
 
@@ -404,7 +361,6 @@ frontend/
 - [x] B12. `GET /api/players/:id/history` for the profile page (attendance trend, session list, recent matches).
 - [x] B13. Seven sports with per-sport stat lines on matches (`stats`), `SPORT_STATS`, 16-player seed.
 - [x] B14. Scout access: `email` and `status` on `User`, `POST /api/auth/register-scout`, login by email with the pending 403, `/api/users/scouts` routes, scouts re-checked against the database on every request. Seed adds a pending scout `new.scout@example.com` / `scout123`.
-- [x] B15. Academies: `Academy` model, `academyId` on users, players, sessions and matches (session uniqueness is per academy), every route scoped to the signed-in academy, `register-academy`, `/api/academies`, `/api/academy`, coach accounts, scout sign-up per academy, account and academy re-read on every request. Seed adds Ranchi Hockey Academy; `npm run migrate:academies` links data from before academies to Dumka Sports Academy without deleting anything.
 - [ ] B10. Deploy `backend/` to Vercel, set env vars, run seed against Atlas, give `BACKEND_URL` to the teammate.
 
 ## 8. Frontend task list (teammate)
@@ -432,12 +388,9 @@ Independent from day one: work with `NEXT_PUBLIC_USE_MOCKS=true` until the backe
 - [x] F13. "Match by match" charts on every profile: one small bar chart per stat of the sport, one bar per match (last 8), own scale from 0, value labels, hover and keyboard tooltip. The Recent matches list is the table view.
 - [x] F14. Profile restyled after a game-stats screen: Rating + headline strip, radar ("Performance"), Attendance and per-sport detail lists. Radar axes are Attendance, Matches and each sport stat (0 to 100 against the academy best); Rating is their plain average. Real data only, no letter grade. Backend: `history.peers` (anonymous academy maxima, `services/peers.js`).
 - [x] F15. Theme: the Onthi DESIGN.md palette after an unslop pass. Light #F7F7FD canvas with white cards (#E2E8F0 hairline, 16px cards, 12px controls, 6px tags, no shadows or gradients), indigo #6366F1 as the single accent (every action button, bars, present marks, selection; #4F46E5 for text and lines on white), lime #58CC02 only for Ready tags, orange #C2410C with a peach fill for alerts, absent marks and the 75% line, link purple #6D28D9, lilac #EDE9FE hover. Be Vietnam Pro at weight 600 for headings, titles and buttons, tabular figures. Signature detail: a small sport-coloured dot beside the sport name (`SportTag` in `components/ui.tsx`: Football lime, Cricket sky, Badminton purple, Volleyball peach, Kabaddi indigo, Hockey yellow, Table Tennis lilac). About 30% dark using the Onthi dark theme: sidebar #0C0C13, banner, stats strip and KPI tiles #1B1B21, indigo #7678F3 numbers; the current nav item is a surface step, not a solid block. Stat text is singular or plural (`statText` in `lib/sportStats.ts`: "1 goal", "2 goals"). Tokens in `app/globals.css`. Components use semantic names (`text-ink`, `bg-dark`, `text-on-dark`, `bg-primary`, `text-accent-ink`, `bg-go`), so do not write hex or Tailwind palette classes.
-- [x] F16. Sport bar (`SportBar` in `components/SportFilter.tsx`, remembered in the browser): a row of buttons, All sports plus each sport the academy runs (with its colour dot), shown above the lists it filters: Ready board, Players, Sessions, Matches, Profiles and the scout page. It replaces the old dropdown in the top bar, is a keyboard radio group, and is hidden on single records, settings and for players. The add-player, open-session and record-match forms start on the chosen sport. Player search still searches everyone.
+- [x] F16. Global sport selector in the top bar (`components/SportFilter.tsx`, remembered in the browser). Coach: Ready board, Players, Sessions, Matches all follow it, and the add-player, open-session and record-match forms start on it. Scout: the Ready list follows it. Player search still searches everyone. Players (role) do not see it.
 - [x] F18. Scout access. Public `/register` (email, password, confirm; says the coach must approve). Login box is "Username or email" with a link to `/register`. Coach: Profiles is now the last sidebar item and holds a "Scout access" section (create a scout, approve or reject pending requests, remove an active scout with a confirm step) above the add-player form. Mocks follow the same rules (demo storage key `academy-mock-db-v3`).
 - [x] F19. Ready board: 3 KPI tiles, then the players. The attendance-by-session-day chart and the Needs attention panel were removed. Wherever there is a Table / Photo cards choice (`PlayersView`: Ready board, Players, scout page) the table is the default.
-- [x] F22. Sign-in screen in two halves: a dark Academy Desk panel (headline, one line on what it does, three features) on the left, the card on the right with **Sign in** and **Sign up** tabs on top (`components/AuthShell.tsx`, `components/AuthTabs.tsx`). `/login` opens Sign in, `/register-academy` opens Sign up, and switching tabs changes the address. Password fields have a show/hide button. The scout sign-up page (`/register`) uses the same frame. On phones the panel shrinks to the product name above the card. No remember-me or forgot-password, since the app has no password recovery.
-- [x] F23. "Try it in one click" on the Sign in tab, in every mode including the deployment: Coach (`coach / coach123`), Player (`dev / dev123`, Cricket) and Scout (`scout / scout123`) of Dumka Sports Academy. These accounts are public, so remove the section (QUICK_ACCOUNTS in `components/AuthTabs.tsx`) before real use.
-- [x] F21. Academies: `/register-academy` (name, town, sports, coach login), "Register your academy" on the sign-in page, academy picker on scout sign-up, the academy's name in the sidebar, Academy settings for coaches (`/coach/academy`), a Coaches choice in Profiles (`components/CoachManager.tsx`), and every sport menu shows only the academy's sports. Mocks follow the same rules (demo storage key `academy-mock-db-v5`).
 - [x] F20. Profile management made compact: a Players / Scouts choice first (Scouts shows how many requests are waiting), then only that group's options (`components/PlayerManager.tsx`, `components/ScoutAccess.tsx`). Both "add" forms stay closed until their button is pressed, and the player list has a name filter.
 - [x] F17. Coach sidebar: new "Profiles" section (`/coach/profiles`) for profile management. Creating players moved out of Players, which is now a view. Edit links open the profile with the editor already open.
 - [ ] F9. Deploy `frontend/` to Vercel with `BACKEND_URL` set. This is the live URL we submit.
@@ -448,9 +401,7 @@ Independent from day one: work with `NEXT_PUBLIC_USE_MOCKS=true` until the backe
 
 `npm run seed` (in `backend/`) wipes the database and loads this. `npm run seed:empty` loads only the coach and scout accounts, so we can do the checks live from scratch.
 
-Academies: **Dumka Sports Academy** (Dumka, all 7 sports) holds everything below. **Ranchi Hockey Academy** (Ranchi, Football and Hockey) has coach `ranchi / ranchi123` and players `sahil / sahil123` and `tanvi / tanvi123`, and nothing else, to show that academies are kept apart.
-
-Dumka accounts: `coach / coach123`, `scout / scout123`, a pending scout `new.scout@example.com / scout123` (full seed only, for showing the approval flow), and one login per player: lowercase first name, password name + `123` (for example `dev / dev123`).
+Accounts: `coach / coach123`, `scout / scout123`, a pending scout `new.scout@example.com / scout123` (full seed only, for showing the approval flow), and one login per player: lowercase first name, password name + `123` (for example `dev / dev123`).
 
 16 players in 7 sports, each with 4 closed sessions and 2 matches with real stat lines: Football (Aarav, Bina, Chandan), Cricket (Dev, Esha, Farhan), Badminton (Gita, Harsh), Volleyball (Indu, Jay), Kabaddi (Kiran, Lakshmi), Hockey (Manoj, Nisha), Table Tennis (Omkar, Pooja). Not Ready: Chandan, Farhan, Harsh, Lakshmi. The Football table below is the one the four checks use.
 

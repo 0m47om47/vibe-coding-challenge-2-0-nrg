@@ -1,15 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { ChalkboardTeacher, ShieldCheck, Users } from "@phosphor-icons/react";
-import { CoachManager } from "@/components/CoachManager";
+import { ShieldCheck, Users } from "@phosphor-icons/react";
 import { PlayerManager } from "@/components/PlayerManager";
 import { ScoutAccess } from "@/components/ScoutAccess";
 import { PageHeader, cx } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useLoad } from "@/lib/useLoad";
 
-type Who = "players" | "scouts" | "coaches";
+type Who = "players" | "scouts";
 
 /**
  * Profile management starts with one question: whose profiles? Only that group's options are shown after the
@@ -19,13 +18,8 @@ export default function ProfilesPage() {
   const [who, setWho] = useState<Who | null>(null);
   // Counts for the two choices. Reloaded when the choice changes, so approving a scout shows up here.
   const counts = useLoad(async () => {
-    const [players, scouts, coaches] = await Promise.all([api.players.list(), api.scouts.list(), api.coaches.list()]);
-    return {
-      players: players.players.length,
-      waiting: scouts.scouts.filter((s) => s.status === "pending").length,
-      scouts: scouts.scouts.length,
-      coaches: coaches.coaches.length,
-    };
+    const [players, scouts] = await Promise.all([api.players.list(), api.scouts.list()]);
+    return { players: players.players.length, waiting: scouts.scouts.filter((s) => s.status === "pending").length, scouts: scouts.scouts.length };
   }, [who]);
 
   const choices: { id: Who; label: string; icon: React.ReactNode; hint: string }[] = [
@@ -45,19 +39,13 @@ export default function ProfilesPage() {
           : `${counts.data.scouts} accounts. Create, approve, remove.`
         : "Create, approve and remove scouts.",
     },
-    {
-      id: "coaches",
-      label: "Coaches",
-      icon: <ChalkboardTeacher size={22} aria-hidden />,
-      hint: counts.data ? `${counts.data.coaches} ${counts.data.coaches === 1 ? "coach" : "coaches"}. Add or remove.` : "Add or remove coaches.",
-    },
   ];
 
   return (
     <>
       <PageHeader title="Profile management" subtitle="Choose whose profiles you want to manage." />
 
-      <div role="tablist" aria-label="Whose profiles" className="mb-6 grid gap-3 sm:grid-cols-3">
+      <div role="tablist" aria-label="Whose profiles" className="mb-6 grid gap-3 sm:grid-cols-2">
         {choices.map((c) => {
           const on = who === c.id;
           return (
@@ -84,7 +72,7 @@ export default function ProfilesPage() {
         })}
       </div>
 
-      {who === null && <p className="body-5 text-muted">Pick Players, Scouts or Coaches above to see what you can do.</p>}
+      {who === null && <p className="body-5 text-muted">Pick Players or Scouts above to see what you can do.</p>}
       {who === "players" && (
         <div role="tabpanel" id="panel-players" aria-labelledby="tab-players">
           <PlayerManager />
@@ -93,11 +81,6 @@ export default function ProfilesPage() {
       {who === "scouts" && (
         <div role="tabpanel" id="panel-scouts" aria-labelledby="tab-scouts">
           <ScoutAccess />
-        </div>
-      )}
-      {who === "coaches" && (
-        <div role="tabpanel" id="panel-coaches" aria-labelledby="tab-coaches">
-          <CoachManager />
         </div>
       )}
     </>

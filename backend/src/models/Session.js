@@ -11,7 +11,6 @@ const attendanceSchema = new mongoose.Schema(
 
 const sessionSchema = new mongoose.Schema(
   {
-    academyId: { type: mongoose.Schema.Types.ObjectId, ref: "Academy", required: true, index: true },
     date: { type: String, required: true }, // YYYY-MM-DD
     sport: { type: String, enum: SPORTS, required: true },
     status: { type: String, enum: SESSION_STATUSES, default: "open" },
@@ -20,7 +19,7 @@ const sessionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// One session per sport per date, within an academy
-sessionSchema.index({ academyId: 1, sport: 1, date: 1 }, { unique: true });
+// One session per sport per date
+sessionSchema.index({ sport: 1, date: 1 }, { unique: true });
 
 export default mongoose.models.Session ?? mongoose.model("Session", sessionSchema);

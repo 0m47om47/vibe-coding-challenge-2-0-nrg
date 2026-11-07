@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { MagnifyingGlass, Plus, UserPlus, X } from "@phosphor-icons/react";
-import { useAuth } from "@/components/AuthProvider";
 import { PlayerAvatar } from "@/components/PlayerAvatar";
 import { useSportFilter } from "@/components/SportFilter";
 import { SportSelect } from "@/components/SportSelect";
@@ -16,12 +15,10 @@ const blank = { name: "", age: "", sport: "Football" as Sport, username: "", pas
 /** Coach only. Find a player to edit, or add a new one. The add form stays closed until it is asked for. */
 export function PlayerManager() {
   const { sport } = useSportFilter();
-  const { user } = useAuth();
-  const firstSport = user?.academy.sports[0] ?? "Football";
   const { data, error, loading, reload } = useLoad(() => api.players.list(sport || undefined), [sport]);
   const [query, setQuery] = useState("");
   const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ ...blank, sport: firstSport });
+  const [form, setForm] = useState(blank);
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [added, setAdded] = useState<string | null>(null);

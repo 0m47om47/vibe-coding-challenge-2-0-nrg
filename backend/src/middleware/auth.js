@@ -1,6 +1,5 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
-import Academy from "../models/Academy.js";
 import { HttpError } from "../utils/httpError.js";
 
 export const COOKIE_NAME = "token";
@@ -20,7 +19,11 @@ export const cookieOptions = () => ({
 });
 
 export function signToken(user) {
-  return jwt.sign({ sub: String(user._id), role: user.role }, secret(), { expiresIn: "7d" });
+  return jwt.sign(
+    { sub: String(user._id), username: user.username, role: user.role, playerId: user.playerId ? String(user.playerId) : undefined },
+    secret(),
+    { expiresIn: "7d" }
+  );
 }
 
 export function setAuthCookie(res, token) {
@@ -31,11 +34,7 @@ export function clearAuthCookie(res) {
   res.clearCookie(COOKIE_NAME, cookieOptions());
 }
 
-/**
- * Sets req.user = { id, username, role, playerId?, academyId } and req.academy, or throws 401.
- * The account and its academy are read from the database on every request, so a coach removing a scout
- * or another coach takes effect at once, and every query can be scoped to req.user.academyId.
- */
+// Sets req.user = SessionUser (AGENTS.md §4) or throws 401.
 export async function requireAuth(req, _res, next) {
   const token = req.cookies?.[COOKIE_NAME];
   if (!token) throw new HttpError(401, "Please log in.");
@@ -45,21 +44,17 @@ export async function requireAuth(req, _res, next) {
   } catch {
     throw new HttpError(401, "Your login has expired. Please log in again.");
   }
-  const user = await User.findById(payload.sub).select("username role status playerId academyId").lean();
-  if (!user || user.status === "pending") {
-    throw new HttpError(401, payload.role === "scout" ? "Your scout access is no longer active." : "Your account is no longer active.");
+  if (payload.role === "scout") {
+    // The coach can remove a scout at any time, so the cookie alone is not enough for this role.
+    const account = await User.findById(payload.sub).select("status");
+    if (!account || account.status !== "active") throw new HttpError(401, "Your scout access is no longer active.");
   }
-  const academy = user.academyId ? await Academy.findById(user.academyId).lean() : null;
-  if (!academy) throw new HttpError(401, "Please log in again.");
-
   req.user = {
-    id: String(user._id),
-    username: user.username,
-    role: user.role,
-    ...(user.playerId ? { playerId: String(user.playerId) } : {}),
-    academyId: String(academy._id),
+    id: payload.sub,
+    username: payload.username,
+    role: payload.role,
+    ...(payload.playerId ? { playerId: payload.playerId } : {}),
   };
-  req.academy = academy;
   next();
 }
 
