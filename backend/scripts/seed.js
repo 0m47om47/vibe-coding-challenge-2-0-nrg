@@ -1,10 +1,13 @@
-// npm run seed        -> wipes the database, loads coach, scout, 16 players in 7 sports with sessions and matches
-// npm run seed:empty  -> wipes the database, loads only the coach and scout accounts
+// npm run seed        -> wipes the database, loads Dumka Sports Academy (coach, scout, 16 players in 7 sports with sessions
+//                        and matches) and a second, small academy (Ranchi Hockey Academy) to show the two are kept apart
+// npm run seed:empty  -> wipes the database, loads only Dumka Sports Academy with its coach and scout accounts
 // Data matches AGENTS.md §9.
 import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { connectDB, disconnectDB } from "../src/db.js";
 import User from "../src/models/User.js";
+import Academy from "../src/models/Academy.js";
+import { SPORTS } from "../src/constants.js";
 import Player from "../src/models/Player.js";
 import Session from "../src/models/Session.js";
 import Match from "../src/models/Match.js";
@@ -14,17 +17,20 @@ const emptyOnly = process.argv.includes("--empty");
 const hash = (pw) => bcrypt.hash(pw, 10);
 
 await connectDB();
-await Promise.all([User.deleteMany({}), Player.deleteMany({}), Session.deleteMany({}), Match.deleteMany({})]);
-await Promise.all([User.init(), Session.init()]); // make sure unique indexes exist
+await Promise.all([Academy.deleteMany({}), User.deleteMany({}), Player.deleteMany({}), Session.deleteMany({}), Match.deleteMany({})]);
+await Promise.all([Academy.syncIndexes(), User.syncIndexes(), Session.syncIndexes()]); // unique indexes, and drop old ones
+
+const dumka = await Academy.create({ name: "Dumka Sports Academy", nameKey: "dumka sports academy", town: "Dumka", sports: SPORTS });
+const academyId = dumka._id;
 
 await User.create([
-  { username: "coach", passwordHash: await hash("coach123"), role: "coach" },
-  { username: "scout", passwordHash: await hash("scout123"), role: "scout" },
+  { username: "coach", passwordHash: await hash("coach123"), role: "coach", academyId },
+  { username: "scout", passwordHash: await hash("scout123"), role: "scout", academyId },
 ]);
 
 if (!emptyOnly) {
   // A scout who signed up by email and is waiting for the coach to approve (Profiles > Scout access).
-  await User.create({ username: "new.scout@example.com", email: "new.scout@example.com", passwordHash: await hash("scout123"), role: "scout", status: "pending" });
+  await User.create({ username: "new.scout@example.com", email: "new.scout@example.com", passwordHash: await hash("scout123"), role: "scout", status: "pending", academyId });
 
   // Same four practice days for every sport. P = present, A = absent.
   const DAYS = ["2026-10-25", "2026-10-27", "2026-10-29", "2026-11-01"];
@@ -32,9 +38,9 @@ if (!emptyOnly) {
   const SQUADS = {
     Football: {
       players: [
-        ["Aarav", 16, 172, 61, "PPPP"],
-        ["Bina", 15, 165, 54, "APPP"],
-        ["Chandan", 17, 176, 66, "PPAA"],
+        ["Aarav", 19, 172, 61, "PPPP"],
+        ["Bina", 18, 165, 54, "APPP"],
+        ["Chandan", 20, 176, 66, "PPAA"],
       ],
       matches: [
         [2, "Dumka Strikers", { Aarav: { goals: 2, assists: 0 }, Bina: { goals: 1, assists: 1 } }],
@@ -43,9 +49,9 @@ if (!emptyOnly) {
     },
     Cricket: {
       players: [
-        ["Dev", 16, 175, 64, "PPPP"],
-        ["Esha", 15, 160, 50, "PPPA"],
-        ["Farhan", 17, 178, 70, "APAP"],
+        ["Dev", 19, 175, 64, "PPPP"],
+        ["Esha", 18, 160, 50, "PPPA"],
+        ["Farhan", 21, 178, 70, "APAP"],
       ],
       matches: [
         [1, "Deoghar Blasters", { Dev: { runs: 48, wickets: 1, catches: 1 }, Esha: { runs: 22, wickets: 3, catches: 0 }, Farhan: { runs: 0, wickets: 0, catches: 0 } }],
@@ -54,8 +60,8 @@ if (!emptyOnly) {
     },
     Badminton: {
       players: [
-        ["Gita", 15, 158, 48, "PPPP"],
-        ["Harsh", 16, 172, 60, "PPPA"],
+        ["Gita", 18, 158, 48, "PPPP"],
+        ["Harsh", 19, 172, 60, "PPPA"],
       ],
       matches: [
         [1, "Dumka Smashers", { Gita: { gamesWon: 2, pointsWon: 42 }, Harsh: { gamesWon: 1, pointsWon: 37 } }],
@@ -64,8 +70,8 @@ if (!emptyOnly) {
     },
     Volleyball: {
       players: [
-        ["Indu", 16, 170, 56, "PPPP"],
-        ["Jay", 17, 183, 72, "PAPP"],
+        ["Indu", 19, 170, 56, "PPPP"],
+        ["Jay", 20, 183, 72, "PAPP"],
       ],
       matches: [
         [2, "Pakur Spikers", { Indu: { points: 14, spikes: 9, blocks: 2, aces: 1 }, Jay: { points: 18, spikes: 12, blocks: 4, aces: 0 } }],
@@ -74,8 +80,8 @@ if (!emptyOnly) {
     },
     Kabaddi: {
       players: [
-        ["Kiran", 17, 174, 69, "PPPP"],
-        ["Lakshmi", 16, 163, 55, "PPAA"],
+        ["Kiran", 21, 174, 69, "PPPP"],
+        ["Lakshmi", 19, 163, 55, "PPAA"],
       ],
       matches: [
         [1, "Santhal Raiders", { Kiran: { raidPoints: 9, tacklePoints: 2 }, Lakshmi: { raidPoints: 4, tacklePoints: 5 } }],
@@ -84,8 +90,8 @@ if (!emptyOnly) {
     },
     Hockey: {
       players: [
-        ["Manoj", 16, 176, 65, "PPPP"],
-        ["Nisha", 15, 161, 52, "PPPP"],
+        ["Manoj", 20, 176, 65, "PPPP"],
+        ["Nisha", 18, 161, 52, "PPPP"],
       ],
       matches: [
         [2, "Ranchi Sticks", { Manoj: { goals: 1, assists: 2 }, Nisha: { goals: 2, assists: 0 } }],
@@ -94,8 +100,8 @@ if (!emptyOnly) {
     },
     "Table Tennis": {
       players: [
-        ["Omkar", 14, 160, 47, "PPAP"],
-        ["Pooja", 15, 155, 45, "PPPP"],
+        ["Omkar", 18, 160, 47, "PPAP"],
+        ["Pooja", 19, 155, 45, "PPPP"],
       ],
       matches: [
         [1, "Dumka TT Club", { Omkar: { gamesWon: 3, pointsWon: 41 }, Pooja: { gamesWon: 2, pointsWon: 35 } }],
@@ -110,14 +116,15 @@ if (!emptyOnly) {
   for (const [sport, squad] of Object.entries(SQUADS)) {
     const created = {};
     for (const [name, age, heightCm, weightKg] of squad.players) {
-      const p = await Player.create({ name, age, sport, heightCm, weightKg, nationality: "India" });
+      const p = await Player.create({ academyId, name, age, sport, heightCm, weightKg, nationality: "India" });
       created[name] = p;
       playerCount++;
       const username = name.toLowerCase();
-      await User.create({ username, passwordHash: await hash(`${username}123`), role: "player", playerId: p._id });
+      await User.create({ username, passwordHash: await hash(`${username}123`), role: "player", playerId: p._id, academyId });
     }
     for (const [i, date] of DAYS.entries()) {
       await Session.create({
+        academyId,
         date,
         sport,
         status: "closed",
@@ -130,6 +137,7 @@ if (!emptyOnly) {
     }
     for (const [dayIndex, opponent, lines] of squad.matches) {
       await Match.create({
+        academyId,
         date: DAYS[dayIndex],
         sport,
         opponent,
@@ -138,8 +146,17 @@ if (!emptyOnly) {
       matchCount++;
     }
   }
-  seeded = `Seeded accounts, ${playerCount} players in 7 sports, ${sessionCount} sessions, ${matchCount} matches.`;
+  // A second academy, so it is easy to see that coaches, scouts and players only ever see their own academy.
+  const ranchi = await Academy.create({ name: "Ranchi Hockey Academy", nameKey: "ranchi hockey academy", town: "Ranchi", sports: ["Hockey", "Football"] });
+  await User.create({ username: "ranchi", passwordHash: await hash("ranchi123"), role: "coach", academyId: ranchi._id });
+  for (const [name, age, sport] of [["Sahil", 19, "Hockey"], ["Tanvi", 20, "Hockey"]]) {
+    const p = await Player.create({ academyId: ranchi._id, name, age, sport, nationality: "India" });
+    const username = name.toLowerCase();
+    await User.create({ username, passwordHash: await hash(`${username}123`), role: "player", playerId: p._id, academyId: ranchi._id });
+  }
+
+  seeded = `Seeded Dumka Sports Academy (${playerCount} players in 7 sports, ${sessionCount} sessions, ${matchCount} matches) and Ranchi Hockey Academy (2 players).`;
 }
 
-console.log(emptyOnly ? "Seeded accounts only (coach, scout)." : seeded);
+console.log(emptyOnly ? "Seeded Dumka Sports Academy with its coach and scout only." : seeded);
 await disconnectDB();

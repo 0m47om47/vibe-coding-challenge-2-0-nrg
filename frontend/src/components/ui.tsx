@@ -140,7 +140,7 @@ export function Badge({ tone = "neutral", icon, children }: { tone?: Tone; icon?
 }
 
 // The signature detail: a small dot in the sport's Onthi accent next to the name. Colour marks the sport and nothing else.
-const SPORT_DOT: Record<string, string> = {
+export const SPORT_DOT: Record<string, string> = {
   Football: "bg-go",
   Cricket: "bg-sport-sky",
   Badminton: "bg-sport-purple",
