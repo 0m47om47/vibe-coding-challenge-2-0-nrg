@@ -82,8 +82,8 @@ export function SportBar() {
 
   return (
     <div className="mb-6 rounded-2xl border border-line bg-surface p-2">
-      <div role="radiogroup" aria-label="Sport" onKeyDown={onKeyDown} className="flex items-center gap-1 overflow-x-auto">
-        <span aria-hidden className="caption-1 shrink-0 px-2 text-ink-2">
+      <div role="radiogroup" aria-label="Sport" onKeyDown={onKeyDown} className="flex flex-wrap items-center gap-1">
+        <span aria-hidden className="caption-1 w-full shrink-0 px-2 text-ink-2 sm:w-auto">
           Sport
         </span>
         {options.map((s) => {
@@ -98,7 +98,7 @@ export function SportBar() {
               tabIndex={on ? 0 : -1}
               onClick={() => setSport(s)}
               className={cx(
-                "motion-base flex shrink-0 cursor-pointer items-center gap-2 rounded-xl px-3 py-2 button-sm",
+                "motion-base flex cursor-pointer items-center gap-2 rounded-xl px-3 py-2 button-sm",
                 on ? "bg-primary text-on-primary" : "text-ink-2 hover:bg-hover hover:text-ink"
               )}
             >

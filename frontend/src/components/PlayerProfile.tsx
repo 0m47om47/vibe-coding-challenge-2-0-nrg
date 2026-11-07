@@ -121,12 +121,12 @@ export function PlayerProfile({ playerId, back }: { playerId: string; back?: { h
             ) : (
               <ul>
                 {history.matches.slice(0, 6).map((m) => (
-                  <li key={m.id} className="flex items-center justify-between gap-3 border-t border-line py-3 first:border-t-0 first:pt-0">
+                  <li key={m.id} className="flex flex-col gap-1 border-t border-line py-3 first:border-t-0 first:pt-0 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                     <div className="min-w-0">
                       <p className="body-4 truncate text-ink">Against {m.opponent}</p>
                       <p className="caption-5 text-muted">{formatDate(m.date)}</p>
                     </div>
-                    <p className="shrink-0 text-right body-5 text-ink">
+                    <p className="body-5 text-ink sm:shrink-0 sm:text-right">
                       {SPORT_STATS[player.sport].map((f) => statText(f, m.stats[f.key] ?? 0)).join(", ")}
                     </p>
                   </li>

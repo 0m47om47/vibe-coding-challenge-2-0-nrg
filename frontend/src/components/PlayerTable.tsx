@@ -29,11 +29,11 @@ export function Meter({ pct, ready }: { pct: number; ready?: boolean }) {
 const sessionsText = (p: PlayerStats) =>
   p.sessionsHeld === 0 ? "No sessions yet" : `${p.sessionsPresent} of ${p.sessionsHeld} sessions`;
 
-/** Table on wide screens, stacked cards on phones. Choosing a player calls onSelect (the profile opens there). */
+/** Table once the screen is wide enough for it beside the sidebar (1024px and up), stacked cards below that. Choosing a player calls onSelect (the profile opens there). */
 export function PlayerTable({ players, onSelect }: { players: PlayerStats[]; onSelect: (p: PlayerStats) => void }) {
   return (
     <>
-      <div className="hidden overflow-hidden rounded-xl border border-line bg-surface md:block">
+      <div className="hidden overflow-x-auto rounded-xl border border-line bg-surface lg:block">
         <table className="w-full text-left">
           <caption className="sr-only">Players with attendance, matches and Ready status</caption>
           <thead>
@@ -95,7 +95,7 @@ export function PlayerTable({ players, onSelect }: { players: PlayerStats[]; onS
         </table>
       </div>
 
-      <ul className="flex flex-col gap-3 md:hidden">
+      <ul className="flex flex-col gap-3 lg:hidden">
         {players.map((p) => (
           <li key={p.id} onClick={() => onSelect(p)} className="motion-base cursor-pointer rounded-xl border border-line bg-surface p-4 hover:bg-raised">
             <div className="mb-3 flex items-start justify-between gap-3">
