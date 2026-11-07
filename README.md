@@ -243,6 +243,4 @@ AGENTS.md               rules, contract, API, task list and seed data
 - **No deleting players** yet, and a player's name, age and sport cannot be edited after creation.
 - The public academy list shows names and towns only, so scouts can choose one.
 
-## Team
-
-Team **NRG**: backend by Suraj, frontend by a Om. How we split the work and the rules we followed are in [`AGENTS.md`](AGENTS.md).
+[`AGENTS.md`](AGENTS.md).

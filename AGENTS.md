@@ -27,8 +27,8 @@ The repo has **two separate apps in two folders**. They share nothing except the
 vibe-coding-challenge-2-0-nrg/
   AGENTS.md
   CLAUDE.md
-  backend/     Node.js + Express, plain JavaScript   (Suraj)
-  frontend/    Next.js + TypeScript + Tailwind       (teammate)
+  backend/     Node.js + Express, plain JavaScript   
+  frontend/    Next.js + TypeScript + Tailwind       
 ```
 
 | Part | Backend (`backend/`) | Frontend (`frontend/`) |
@@ -346,7 +346,7 @@ All under `/api`. JSON in, JSON out. Errors always use the `ApiError` shape. Aut
 
 Each person owns one folder. Touching the other folder needs a heads-up. `AGENTS.md` is shared.
 
-### `backend/` (Suraj): Node.js + Express, plain JS
+### `backend/` : Node.js + Express, plain JS
 ```
 backend/
   package.json            "type": "module"; scripts: dev, start, seed, seed:empty, test (`node --test`)
@@ -368,7 +368,7 @@ backend/
   test/stats.test.js      node:test, covers the 75% boundary and match rule
 ```
 
-### `frontend/` (teammate): Next.js + TypeScript + Tailwind
+### `frontend/` : Next.js + TypeScript + Tailwind
 ```
 frontend/
   next.config.(js|ts)     /api rewrite to BACKEND_URL (§2)
@@ -388,7 +388,7 @@ frontend/
 
 ---
 
-## 7. Backend task list (Suraj)
+## 7. Backend task list 
 
 - [x] **B0. Setup** `backend/` (skeleton files and `package.json` scripts already exist): install `express mongoose bcryptjs jsonwebtoken cookie-parser cors dotenv`, dev `nodemon`. `app.js` + `server.js` + `/api/health`. `.env.example`.
 - [x] B1. `db.js`: cached Mongoose connection.
@@ -405,9 +405,9 @@ frontend/
 - [x] B13. Seven sports with per-sport stat lines on matches (`stats`), `SPORT_STATS`, 16-player seed.
 - [x] B14. Scout access: `email` and `status` on `User`, `POST /api/auth/register-scout`, login by email with the pending 403, `/api/users/scouts` routes, scouts re-checked against the database on every request. Seed adds a pending scout `new.scout@example.com` / `scout123`.
 - [x] B15. Academies: `Academy` model, `academyId` on users, players, sessions and matches (session uniqueness is per academy), every route scoped to the signed-in academy, `register-academy`, `/api/academies`, `/api/academy`, coach accounts, scout sign-up per academy, account and academy re-read on every request. Seed adds Ranchi Hockey Academy; `npm run migrate:academies` links data from before academies to Dumka Sports Academy without deleting anything.
-- [x] B10. Deploy `backend/` to Vercel, set env vars, run seed against Atlas, give `BACKEND_URL` to the teammate.
+- [x] B10. Deploy `backend/` to Vercel, set env vars, run seed against Atlas.
 
-## 8. Frontend task list (teammate)
+## 8. Frontend task list 
 
 Independent from day one: work with `NEXT_PUBLIC_USE_MOCKS=true` until the backend is up. Every API error message must be shown to the user (e.g. "Chandan was absent on 2026-11-01").
 
@@ -493,6 +493,5 @@ How each check is shown:
 - Photos: the browser shrinks the picture first (longest side 1200px, JPEG), then uploads it. With mocks on, the picture is kept in the browser instead of Cloudinary. Cards use `object-fit: cover` and show a silhouette when a player has no photo.
 - On the real backend the match form lists everyone of the sport, and disables players who were not present that day (the server still refuses them with 422 if one gets through).
 
-## 12. Open questions
 
-- (none yet)
+
